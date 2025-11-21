@@ -23,6 +23,7 @@ export class HUD {
         this.fpsCounter = document.getElementById('fps-counter');
         this.enemyCount = document.getElementById('enemy-count');
         this.killCount = document.getElementById('kill-count');
+        this.distanceTraveled = document.getElementById('distance-traveled');
         this.memoryUsage = document.getElementById('memory-usage');
 
         // Debug Elements
@@ -64,6 +65,10 @@ export class HUD {
             this.enemyCount.innerText = this.player.enemyManager.enemies.length;
             this.killCount.innerText = this.player.enemyManager.killedCount || 0;
         }
+
+        // Distance traveled (convert meters to kilometers)
+        const distanceKm = (this.player.distanceTraveled / 1000).toFixed(2);
+        if (this.distanceTraveled) this.distanceTraveled.innerText = distanceKm;
 
         // Stats
         this.healthBar.style.width = `${this.player.health}%`;

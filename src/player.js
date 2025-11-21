@@ -28,6 +28,10 @@ export class Player {
         this.jumpHeight = 30.0;
         this.gravity = 250.0;
 
+        // Distance tracking
+        this.distanceTraveled = 0; // in meters
+        this.previousPosition = new THREE.Vector3();
+
         // Weapons
         this.allWeapons = [
             { name: 'Pistola', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5 },
@@ -492,6 +496,19 @@ export class Player {
                 this.mesh.position.y = 0;
                 this.canJump = true;
             }
+
+            // Track distance traveled and drain stamina
+            if (this.previousPosition.length() > 0) {
+                const distance = this.mesh.position.distanceTo(this.previousPosition);
+                this.distanceTraveled += distance;
+                
+                // Drain stamina while moving (0.5 stamina per 10 meters)
+                if (distance > 0 && this.stamina > 0) {
+                    const staminaDrain = (distance / 10) * 0.5;
+                    this.stamina = Math.max(0, this.stamina - staminaDrain);
+                }
+            }
+            this.previousPosition.copy(this.mesh.position);
 
             // Camera Follow
             this.camera.position.copy(this.mesh.position);
