@@ -27,6 +27,7 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - **Espaço** - Pular
 - **Mouse** - Olhar ao redor (controle de câmera)
 - **Clique** - Travar ponteiro / Iniciar jogo
+- **V** - Alternar modo de câmera (Primeira Pessoa / Terceira Pessoa)
 
 ### Combate
 - **Clique Esquerdo** - Atirar / Socar
@@ -126,6 +127,10 @@ Acesse o menu de configurações no menu principal ou tela de pausa:
 - **Tempo da Tempestade:** 60-300 segundos
   - Configure quanto tempo até a tempestade fechar completamente
   
+- **Modo de Câmera:** Primeira Pessoa / Terceira Pessoa
+  - Escolha sua perspectiva de câmera preferida
+  - Pode ser alternado no jogo com a tecla V
+  
 - **Modo Debug:** Ligado / Desligado
   - Alterna sobreposição de informações de debug
 
@@ -136,7 +141,14 @@ Todas as configurações são salvas no localStorage do navegador e persistem en
 
 - **Estilo de Arte Voxel:** Gráficos blocados inspirados em Minecraft
 - **Iluminação Dinâmica:** Sombras em tempo real e iluminação ambiente
-- **Câmera em Terceira Pessoa:** Perspectiva por cima do ombro
+- **Modos de Câmera:**
+  - **Terceira Pessoa (TPS):** Perspectiva por cima do ombro com visibilidade completa do personagem
+  - **Primeira Pessoa (FPS):** Visão imersiva na altura dos olhos (alterne com a tecla V)
+- **Crosshair Profissional:** Mira em cruz estilizada com sombra para visibilidade
+- **Traçadores de Balas:** Feedback visual mostrando a trajetória dos tiros
+  - Traçadores amarelos para tiros normais
+  - Traçadores vermelhos ao acertar inimigos
+  - Animação de fade-out para efeito visual suave
 - **Animações de Personagem:**
   - Animações de caminhada/corrida
   - Animações de soco (braços alternados)
@@ -150,6 +162,8 @@ Todas as configurações são salvas no localStorage do navegador e persistem en
 
 ### Condição de Vitória
 Elimine todos os inimigos no mapa para vencer o jogo. Uma tela de vitória aparecerá mostrando sua conquista.
+
+![Tela de Vitória](docs/victory-royale.jpg)
 
 ### Condições de Derrota
 - **Vida chega a 0:** Você morre e o jogo termina
@@ -229,7 +243,11 @@ Os arquivos compilados estarão no diretório `dist/`.
 
 7. **Acompanhe a Distância:** Monitore sua distância percorrida para gerenciar o desgaste de stamina.
 
-8. **Dificuldade Importa:** Comece no Fácil para aprender as mecânicas, depois aumente a dificuldade.
+8. **Perspectiva da Câmera:** Use V para alternar entre primeira e terceira pessoa conforme sua preferência.
+
+9. **Observe Seus Traçadores:** Rastros de bala amarelos ajudam você a ver onde está atirando e ajustar sua mira.
+
+10. **Dificuldade Importa:** Comece no Fácil para aprender as mecânicas, depois aumente a dificuldade.
 
 ## 📝 Licença
 

@@ -34,11 +34,11 @@ export class Player {
 
         // Weapons
         this.allWeapons = [
-            { name: 'Pistola', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5 },
+            { name: 'Pistola', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5, range: 30 },
             // Faster punch, no charge time
-            { name: 'Soco', ammo: Infinity, maxAmmo: Infinity, magazineSize: Infinity, currentMag: Infinity, damage: 10, cooldown: 0.2, lastShot: 0, reloadTime: 0 },
-            { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0 },
-            { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0 }
+            { name: 'Soco', ammo: Infinity, maxAmmo: Infinity, magazineSize: Infinity, currentMag: Infinity, damage: 10, cooldown: 0.2, lastShot: 0, reloadTime: 0, range: 3 },
+            { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0, range: 100 },
+            { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0, range: 500 }
         ];
 
         
@@ -413,8 +413,8 @@ export class Player {
                 const distanceToEnemy = bulletStart.distanceTo(hitPoint);
                 const distanceToWorld = bulletStart.distanceTo(bulletEnd);
                 
-                // Only hit enemy if it's closer than world object
-                if (distanceToEnemy < distanceToWorld) {
+                // Only hit enemy if it's closer than world object AND within weapon range
+                if (distanceToEnemy < distanceToWorld && distanceToEnemy <= weapon.range) {
                     const hitObject = intersects[0].object;
                     bulletEnd = hitPoint.clone();
                     hitSomething = true;
