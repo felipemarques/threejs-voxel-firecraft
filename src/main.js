@@ -93,8 +93,15 @@ class Game {
             // Hide Menu
             menu.style.display = 'none';
             
-            // Start Game
-            this.startGame(settings);
+            // Check if game is already running (resuming from pause/settings)
+            if (this.player && this.world && this.enemyManager) {
+                // Game already exists, just resume
+                this.isPaused = false;
+                this.clock.getDelta(); // Reset clock to prevent delta accumulation
+            } else {
+                // Start new game
+                this.startGame(settings);
+            }
         };
     }
 
@@ -150,6 +157,8 @@ class Game {
             if (this.player.controls) this.player.controls.unlock();
         } else {
             if (this.pauseMenu) this.pauseMenu.classList.add('hidden');
+            // Reset clock to prevent delta time accumulation
+            this.clock.getDelta();
         }
     }
 
@@ -160,9 +169,11 @@ class Game {
         
         if (resumeBtn) resumeBtn.onclick = () => this.togglePause();
         if (settingsBtn) settingsBtn.onclick = () => {
-            this.togglePause();
+            // Hide pause menu and show main menu (keep game paused)
+            if (this.pauseMenu) this.pauseMenu.classList.add('hidden');
             const menu = document.getElementById('main-menu');
             if (menu) menu.style.display = 'block';
+            // Keep isPaused = true so game stays frozen
         };
         if (quitBtn) quitBtn.onclick = () => location.reload();
     }
@@ -178,15 +189,18 @@ class Game {
 
         const dt = this.clock.getDelta();
 
+        // Cap delta time to prevent huge jumps (e.g., when returning from pause/settings)
+        const cappedDt = Math.min(dt, 0.1); // Max 100ms per frame
+
         // Only update game logic if not paused
         if (!this.isPaused && this.player && this.player.controls.isLocked) {
-            this.player.update(dt);
-            const stormStatus = this.world.update(dt, this.player.position);
+            this.player.update(cappedDt);
+            const stormStatus = this.world.update(cappedDt, this.player.position);
             if (stormStatus.inStorm) {
-                this.player.takeDamage(1 * dt); // Reduced damage: 1 per second
+                this.player.takeDamage(1 * cappedDt); // Reduced damage: 1 per second
             }
             
-            this.enemyManager.update(dt);
+            this.enemyManager.update(cappedDt);
             this.itemManager.update();
             this.hud.update();
 
