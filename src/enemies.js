@@ -304,10 +304,18 @@ class Bot {
         // Flash effect (Safe traversal)
         this.mesh.traverse((child) => {
             if (child.isMesh && child !== this.healthBarBg && child !== this.healthBarFg) {
-                if (!child.userData.originalColor) {
-                    child.userData.originalColor = child.material.color.clone();
+                const mat = child.material;
+                if (!child.userData.originalColor && mat && mat.color) {
+                    try { child.userData.originalColor = mat.color.clone(); } catch (e) { child.userData.originalColor = null; }
                 }
-                child.material.emissive = new THREE.Color(0xff0000);
+
+                // Only set emissive on materials that support it (e.g., Standard, Phong, Lambert)
+                if (mat && (mat.isMeshStandardMaterial || mat.isMeshPhongMaterial || mat.isMeshLambertMaterial)) {
+                    mat.emissive = new THREE.Color(0xff0000);
+                } else if (mat && mat.color) {
+                    // Fallback: tint the color temporarily for basic materials
+                    try { mat.color = mat.color.clone().lerp(new THREE.Color(0xff0000), 0.6); } catch (e) { }
+                }
             }
         });
 
@@ -315,7 +323,12 @@ class Bot {
             if(!this.isDead) {
                 this.mesh.traverse((child) => {
                     if (child.isMesh && child !== this.healthBarBg && child !== this.healthBarFg) {
-                        child.material.emissive = new THREE.Color(0x000000);
+                        const mat = child.material;
+                        if (mat && (mat.isMeshStandardMaterial || mat.isMeshPhongMaterial || mat.isMeshLambertMaterial)) {
+                            mat.emissive = new THREE.Color(0x000000);
+                        } else if (mat && mat.color && child.userData && child.userData.originalColor) {
+                            try { mat.color.copy(child.userData.originalColor); } catch (e) { }
+                        }
                     }
                 });
             }

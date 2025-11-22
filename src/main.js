@@ -325,22 +325,77 @@ class Game {
 
             this.renderer.render(this.scene, this.camera);
         } catch (err) {
-            try {
-                console.error('Unhandled error in Game.animate:', err, {
-                    playerExists: !!this.player,
-                    playerWeaponCount: this.player ? (this.player.weapons ? this.player.weapons.length : 'no-weapons') : 'no-player',
-                    currentWeaponIndex: this.player ? this.player.currentWeaponIndex : 'no-player',
-                    hudExists: !!this.hud,
-                    hudSettings: this.hud ? this.hud.settings : null,
-                });
-            } catch (logErr) {
-                console.error('Error logging animate failure:', logErr);
-            }
-            throw err;
+                try {
+                    console.error('Unhandled error in Game.animate:', err, {
+                        playerExists: !!this.player,
+                        playerWeaponCount: this.player ? (this.player.weapons ? this.player.weapons.length : 'no-weapons') : 'no-player',
+                        currentWeaponIndex: this.player ? this.player.currentWeaponIndex : 'no-player',
+                        hudExists: !!this.hud,
+                        hudSettings: this.hud ? this.hud.settings : null,
+                    });
+
+                    // Try to gather more info about materials/meshes that may cause renderer uniform errors
+                    try {
+                        this._logRenderMaterialDiagnostics(err);
+                    } catch (diagErr) {
+                        console.error('Error during render diagnostics:', diagErr);
+                    }
+                } catch (logErr) {
+                    console.error('Error logging animate failure:', logErr);
+                }
+
+                // Don't rethrow here to keep the render loop running; we've logged diagnostics.
+                // Rethrowing was causing the loop to stop and the uncaught exception to spam.
+                return;
         }
     }
 
 }
+
+// Diagnostic helper: logs basic information about scene meshes and their materials
+Game.prototype._logRenderMaterialDiagnostics = function(originalError) {
+    try {
+        const problematic = [];
+        let totalMeshes = 0;
+        this.scene.traverse(obj => {
+            if (obj.isMesh) {
+                totalMeshes++;
+                const mat = obj.material;
+                // Material can be an array for multi-material meshes
+                if (!mat) {
+                    problematic.push({ uuid: obj.uuid, name: obj.name || obj.userData && obj.userData.gameName || 'mesh', issue: 'no-material' });
+                    return;
+                }
+
+                const infoFor = (m) => {
+                    return {
+                        type: m.type || (m.constructor && m.constructor.name) || 'Unknown',
+                        isShaderMaterial: !!m.isShaderMaterial,
+                        isStandardMaterial: !!m.isMeshStandardMaterial,
+                        hasEmissive: m.emissive !== undefined,
+                        uniformsKeys: m.uniforms ? Object.keys(m.uniforms) : null,
+                        userData: m.userData || null
+                    };
+                };
+
+                if (Array.isArray(mat)) {
+                    problematic.push({ uuid: obj.uuid, name: obj.name || obj.userData && obj.userData.gameName || 'mesh', materials: mat.map(infoFor) });
+                } else {
+                    problematic.push({ uuid: obj.uuid, name: obj.userData && obj.userData.gameName || obj.name || 'mesh', material: infoFor(mat) });
+                }
+            }
+        });
+
+        console.error('Render diagnostics:', {
+            originalError: originalError && originalError.toString(),
+            totalMeshes,
+            sampleProblems: problematic.slice(0, 30),
+            note: 'Look for materials missing expected uniforms (shader/standard) or meshes without material.'
+        });
+    } catch (e) {
+        console.error('Failed collecting render diagnostics:', e);
+    }
+};
 
 // Start the game
 window.game = new Game();

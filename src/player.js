@@ -81,6 +81,21 @@ export class Player {
         this.tpsCameraOffset = new THREE.Vector3(0, 2, 4); // Behind and up
         
         this.initControls();
+
+        // Sound effects pool (gunshots)
+        this.sfxVolume = 0.7;
+        this.sfxPool = [];
+        this.sfxIndex = 0;
+        try {
+            for (let i = 0; i < 6; i++) {
+                const a = new Audio('src/assets/mixkit-game-gun-shot.mp3');
+                a.preload = 'auto';
+                a.volume = this.sfxVolume;
+                this.sfxPool.push(a);
+            }
+        } catch (e) {
+            console.warn('Could not initialize SFX pool:', e);
+        }
     }
 
     createPlayerMesh() {
@@ -400,6 +415,23 @@ export class Player {
 
 
         this.createMuzzleFlash();
+        // Play gunshot SFX (use pooled audio elements to allow overlapping)
+        try {
+            if (this.sfxPool && this.sfxPool.length > 0) {
+                const poolItem = this.sfxPool[this.sfxIndex % this.sfxPool.length];
+                // Slightly vary playback rate per weapon for variety
+                if (weapon.name === 'Pistola') poolItem.playbackRate = 1.0;
+                else if (weapon.name === 'Rifle') poolItem.playbackRate = 1.15;
+                else if (weapon.name === 'Sniper') poolItem.playbackRate = 0.9;
+                else poolItem.playbackRate = 1.0;
+                try { poolItem.currentTime = 0; } catch (e) {}
+                const p = poolItem.play();
+                if (p && typeof p.catch === 'function') p.catch(() => {});
+                this.sfxIndex++;
+            }
+        } catch (e) {
+            // Non-fatal
+        }
 
         // Raycast from Camera (center of screen)
         const raycaster = new THREE.Raycaster();
