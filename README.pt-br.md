@@ -262,3 +262,36 @@ Este projeto é open source e disponível para fins educacionais.
 ---
 
 **Aproveite o jogo e boa sorte sobrevivendo!** 🎮🏆
+
+## Novidades (Nov 2025)
+
+- Música de fundo com play/pause e ajuste de volume persistente no menu.
+- PointerLock agora é ativado ao clicar no canvas para evitar travamentos acidentais a partir de elementos UI.
+- IA de wander para NPCs, chase com strafing e animações de ataque mais suaves.
+- Ranges por arma aplicados (pistola/rifle/sniper) e feedback visual na mira (vermelho dentro do alcance, amarelo fora).
+- Sprint e sistema de stamina com item restaurador (`JuiceBottle`).
+- Detecção de hover melhorada: raycast testando meshes-filho dos inimigos e fallback por centro da tela.
+- Outline de hover implementado via grupo overlay não destrutivo para evitar alterações nas materiais originais.
+- SFX de tiro em pool para reprodução mais rápida.
+
+## Executando & Depuração
+
+Recomendado: use o servidor de desenvolvimento Vite para facilitar testes iterativos (carregamento de módulos e source maps).
+
+1. Instale dependências e rode o servidor de desenvolvimento:
+
+```bash
+npm install
+npm run dev
+```
+
+2. Abra a URL mostrada pelo Vite (normalmente `http://localhost:5173`).
+
+3. Se ocorrer um erro de renderer no console do navegador como "Cannot read properties of undefined (reading 'value')", o código já inclui diagnósticos que imprimem um bloco `Render diagnostics:` no console. Copie esse bloco e compartilhe com o mantenedor — ele contém um snapshot de meshes e materiais que ajuda a localizar materiais problemáticos.
+
+4. Verificações rápidas ao depurar:
+- Garanta que o jogo foi iniciado pelo botão Play (o áudio costuma exigir um gesto do usuário).
+- Clique no canvas para travar o ponteiro (evite o lock em documento inteiro).
+- Verifique o console por `Render diagnostics:` e por `Unhandled error in Game.animate:` para obter contexto.
+
+Se preferir, abra uma issue com a saída dos diagnósticos e os passos para reproduzir o problema.

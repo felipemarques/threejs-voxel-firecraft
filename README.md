@@ -262,3 +262,36 @@ This project is open source and available for educational purposes.
 ---
 
 **Enjoy the game and good luck surviving!** 🎮🏆
+
+## What's New (Nov 2025)
+
+- Background music with play/pause and persistent volume setting in the main menu.
+- PointerLock is locked via canvas click to avoid accidental document locks from UI interactions.
+- NPC wander AI, improved chase/strafing behavior and smoother attack animations.
+- Weapon ranges enforced (pistol/rifle/sniper) and crosshair color feedback (red in-range, yellow out-of-range).
+- Sprint + stamina system and a stamina-restoring item (`JuiceBottle`).
+- Hover detection improved: raycast now tests enemy child meshes and falls back to a center-screen raycast.
+- Hover outline implemented using a non-destructive overlay group to avoid modifying original materials.
+- Gunshot SFX pool added for lower-latency playback.
+
+## Running & Debugging
+
+Recommended: use the Vite dev server for iterative development so modules load correctly and source maps are available.
+
+1. Install dependencies and start dev server:
+
+```bash
+npm install
+npm run dev
+```
+
+2. Open the URL shown by Vite (usually `http://localhost:5173`).
+
+3. If you encounter a renderer error in the browser console like "Cannot read properties of undefined (reading 'value')" during render, the code includes diagnostics that will print a `Render diagnostics:` block to the console. Please copy that block and share it with the maintainer — it contains a snapshot of scene meshes and materials which helps identify problematic materials.
+
+4. Quick checks when troubleshooting:
+- Verify you started the game with the Play button (audio requires a user gesture).
+- Click the canvas to lock the pointer instead of using the document-wide lock.
+- Check console logs for `Render diagnostics:` and `Unhandled error in Game.animate:` to get context.
+
+If you want, open an issue with the diagnostics output and the steps you used to reproduce the problem.
