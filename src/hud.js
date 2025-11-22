@@ -45,6 +45,39 @@ export class HUD {
         this.lastFpsTime = performance.now(); // For FPS calculation
 
         this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        this.hoveredEnemy = null;
+        this.hoverInfo = document.getElementById('hover-info');
+        this.targetDistanceEl = document.getElementById('target-distance');
+
+        // Mouse move listener for hover detection
+        window.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth) * 2 - 1;
+            const y = -(e.clientY / window.innerHeight) * 2 + 1;
+            this.mouse.set(x, y);
+
+            // Perform raycast against enemies
+            if (this.player && this.player.enemyManager && this.player.enemyManager.enemies.length > 0) {
+                const enemyMeshes = this.player.enemyManager.enemies.map(e => e.mesh);
+                this.raycaster.setFromCamera(this.mouse, this.player.camera);
+                const intersects = this.raycaster.intersectObjects(enemyMeshes, true);
+                if (intersects.length > 0) {
+                    const obj = intersects[0].object;
+                    // Find enemy instance by traversing parents
+                    let cur = obj;
+                    let found = null;
+                    while (cur) {
+                        found = this.player.enemyManager.enemies.find(en => en.mesh === cur);
+                        if (found) break;
+                        cur = cur.parent;
+                    }
+                    // Store either the enemy instance or the mesh as fallback
+                    this.hoveredEnemy = found || obj || null;
+                } else {
+                    this.hoveredEnemy = null;
+                }
+            }
+        });
     }
 
     update() {
@@ -91,8 +124,9 @@ export class HUD {
             this.ammoCount.innerText = weapon.ammo === Infinity ? '∞' : `${weapon.currentMag} / ${weapon.ammo}`;
         }
 
-        // Debug per‑object labels (only when debug mode is active)
-        if (this.settings.debugMode && this.debugContainer) {
+        // Debug per‑object labels (controlled by showRenderedIds or debugMode)
+        const showRenderedIds = !!this.settings.showRenderedIds || !!this.settings.debugMode;
+        if (showRenderedIds && this.debugContainer) {
             // Clear previous labels
             this.debugContainer.innerHTML = '';
             const objects = this.player.worldObjects || [];
@@ -112,6 +146,71 @@ export class HUD {
             });
         } else if (this.debugContainer) {
             this.debugContainer.innerHTML = '';
+        }
+
+        // Update hovered enemy debug info (show ID and distance)
+        if (this.debugInfo) {
+            if (this.hoveredEnemy) {
+                // Determine mesh and position robustly (hoveredEnemy can be enemy instance or mesh)
+                const mesh = this.hoveredEnemy.mesh ? this.hoveredEnemy.mesh : (this.hoveredEnemy.isMesh ? this.hoveredEnemy : null) || this.hoveredEnemy;
+                const name = (mesh && mesh.userData && mesh.userData.gameName) ? mesh.userData.gameName : 'Enemy';
+                const id = (mesh && mesh.userData && (mesh.userData.gameId || mesh.userData.gameid)) ? (mesh.userData.gameId || mesh.userData.gameid) : '---';
+                // Position fallback: prefer enemy.position if available, else mesh.position
+                const enemyPos = (this.hoveredEnemy.position) ? this.hoveredEnemy.position : (mesh ? mesh.position : null);
+                const dist = enemyPos ? this.player.position.distanceTo(enemyPos).toFixed(2) : '---';
+
+                this.debugName.innerText = name;
+                this.debugId.innerText = `${id} (${dist}m)`;
+                // Ensure debug panel visible if debugMode is on
+                if (this.settings.debugMode) this.debugInfo.style.display = 'block';
+            } else {
+                this.debugName.innerText = 'None';
+                this.debugId.innerText = '---';
+                if (!this.settings.debugMode) this.debugInfo.style.display = 'none';
+            }
+        }
+
+        // Hover info over crosshair: always show when hovering an enemy (not tied to debugMode)
+        if (this.hoverInfo) {
+            if (this.hoveredEnemy) {
+                const mesh = this.hoveredEnemy.mesh ? this.hoveredEnemy.mesh : (this.hoveredEnemy.isMesh ? this.hoveredEnemy : null) || this.hoveredEnemy;
+                const id = (mesh && mesh.userData && (mesh.userData.gameId || mesh.userData.gameid)) ? (mesh.userData.gameId || mesh.userData.gameid) : '---';
+                const enemyPos = (this.hoveredEnemy.position) ? this.hoveredEnemy.position : (mesh ? mesh.position : null);
+                const distNum = enemyPos ? this.player.position.distanceTo(enemyPos) : null;
+                const dist = distNum ? distNum.toFixed(2) : '---';
+                this.hoverInfo.innerText = `${id} • ${dist}m`;
+                // Crosshair color: red if within weapon range, yellow if visible but out of range
+                const crosshair = document.getElementById('crosshair');
+                if (crosshair) {
+                    crosshair.classList.remove('target-red', 'target-yellow');
+                    const weapon = this.player.weapons && this.player.weapons[this.player.currentWeaponIndex];
+                    const weaponRange = weapon && weapon.range ? weapon.range : 1000;
+                    if (distNum !== null) {
+                        if (distNum <= weaponRange) {
+                            crosshair.classList.add('target-red');
+                        } else {
+                            crosshair.classList.add('target-yellow');
+                        }
+                    }
+                }
+            } else {
+                this.hoverInfo.innerText = '';
+                const crosshair = document.getElementById('crosshair');
+                if (crosshair) crosshair.classList.remove('target-red', 'target-yellow');
+            }
+        }
+
+        // Optionally show target distance in top-left (dashboard)
+        if (this.targetDistanceEl) {
+            const showTarget = !!this.settings.showTargetDistance;
+            if (showTarget && this.hoveredEnemy) {
+                const mesh = this.hoveredEnemy.mesh ? this.hoveredEnemy.mesh : (this.hoveredEnemy.isMesh ? this.hoveredEnemy : null) || this.hoveredEnemy;
+                const enemyPos = (this.hoveredEnemy.position) ? this.hoveredEnemy.position : (mesh ? mesh.position : null);
+                const dist = enemyPos ? this.player.position.distanceTo(enemyPos).toFixed(2) : '---';
+                this.targetDistanceEl.innerText = `${dist}`;
+            } else {
+                this.targetDistanceEl.innerText = '---';
+            }
         }
 
         // Hotbar

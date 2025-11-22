@@ -74,6 +74,10 @@ class Bot {
         this.detectionRange = 25;
         this.attackCooldown = 1.5; // Slower attacks
         this.lastAttack = 0;
+        // Wander AI
+        this.wanderTarget = null;
+        this.wanderTimer = 0;
+        this.wanderChangeInterval = 2 + Math.random() * 4; // 2-6s
 
         this.createMesh();
     }
@@ -212,7 +216,42 @@ class Bot {
             }
         } else {
             // Wander logic (simple random movement)
-            // ...
+            this.wanderTimer += dt;
+
+            // Pick a new wander target periodically or if none
+            if (!this.wanderTarget || this.wanderTimer > this.wanderChangeInterval) {
+                // Choose a random point near current position but within world bounds (~ -90..90)
+                const radius = 10 + Math.random() * 30; // wander radius
+                const angle = Math.random() * Math.PI * 2;
+                const tx = this.position.x + Math.cos(angle) * radius;
+                const tz = this.position.z + Math.sin(angle) * radius;
+                // Clamp to world bounds
+                const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+                const nx = clamp(tx, -90, 90);
+                const nz = clamp(tz, -90, 90);
+                this.wanderTarget = new THREE.Vector3(nx, 0, nz);
+                this.wanderTimer = 0;
+                this.wanderChangeInterval = 2 + Math.random() * 4;
+            }
+
+            if (this.wanderTarget) {
+                const dir = new THREE.Vector3().subVectors(this.wanderTarget, this.position);
+                dir.y = 0;
+                const distToTarget = dir.length();
+                if (distToTarget > 0.5) {
+                    dir.normalize();
+                    this.position.add(dir.multiplyScalar(this.speed * dt * 0.5)); // wander slower than chase
+                    this.mesh.lookAt(this.wanderTarget.x, this.position.y, this.wanderTarget.z);
+                    isMoving = true;
+                } else {
+                    // Reached target, wait a bit then pick another
+                    this.wanderTimer += dt;
+                    if (this.wanderTimer > this.wanderChangeInterval) {
+                        this.wanderTarget = null;
+                        this.wanderTimer = 0;
+                    }
+                }
+            }
         }
 
         // Update Mesh

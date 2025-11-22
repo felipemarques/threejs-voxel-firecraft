@@ -41,6 +41,9 @@ class Game {
         // Pause state
         this.isPaused = false;
         this.pauseMenu = document.getElementById('pause-menu');
+        // Background music (initialized on user gesture)
+        this.bgAudio = null;
+        this.bgMusicVolume = 0.5;
         // ESC key to toggle pause
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Escape') {
@@ -59,6 +62,8 @@ class Game {
         const enemiesInput = document.getElementById('setting-enemies');
         const stormInput = document.getElementById('setting-storm');
         const debugCheckbox = document.getElementById('setting-debug');
+        const showIdsCheckbox = document.getElementById('setting-show-ids');
+        const showTargetDistCheckbox = document.getElementById('setting-show-target-distance');
         const cameraSelect = document.getElementById('setting-camera');
         
         const enemiesVal = document.getElementById('enemy-count-val');
@@ -74,6 +79,8 @@ class Game {
             enemiesVal.innerText = s.enemyCount;
             stormVal.innerText = s.stormTime;
             if (s.debugMode) debugCheckbox.checked = true;
+            if (s.showRenderedIds && showIdsCheckbox) showIdsCheckbox.checked = true;
+            if (s.showTargetDistance && showTargetDistCheckbox) showTargetDistCheckbox.checked = true;
             if (s.cameraMode) cameraSelect.value = s.cameraMode;
         }
 
@@ -87,6 +94,8 @@ class Game {
                 enemyCount: parseInt(enemiesInput.value),
                 stormTime: parseInt(stormInput.value),
                 debugMode: debugCheckbox.checked,
+                showRenderedIds: showIdsCheckbox ? showIdsCheckbox.checked : false,
+                showTargetDistance: showTargetDistCheckbox ? showTargetDistCheckbox.checked : false,
                 cameraMode: cameraSelect.value
             };
             
@@ -95,12 +104,18 @@ class Game {
             
             // Hide Menu
             menu.style.display = 'none';
+            // Start background music (user gesture)
+            this.playBackgroundMusic();
             
             // Check if game is already running (resuming from pause/settings)
             if (this.player && this.world && this.enemyManager) {
                 // Game already exists, just resume
                 this.isPaused = false;
                 this.clock.getDelta(); // Reset clock to prevent delta accumulation
+                // Apply updated settings to HUD if present
+                if (this.hud) {
+                    this.hud.settings = settings;
+                }
             } else {
                 // Start new game
                 this.startGame(settings);
@@ -150,6 +165,8 @@ class Game {
             this.isPaused = true;
             this.player.controls.unlock();
             if (this.pauseMenu) this.pauseMenu.classList.remove('hidden');
+            // Pause background music when showing pause menu
+            this.pauseBackgroundMusic();
             return;
         }
         
@@ -158,10 +175,14 @@ class Game {
         if (this.isPaused) {
             if (this.pauseMenu) this.pauseMenu.classList.remove('hidden');
             if (this.player.controls) this.player.controls.unlock();
+            // Pause background music
+            this.pauseBackgroundMusic();
         } else {
             if (this.pauseMenu) this.pauseMenu.classList.add('hidden');
             // Reset clock to prevent delta time accumulation
             this.clock.getDelta();
+            // Resume background music when unpausing
+            this.playBackgroundMusic();
         }
     }
 
@@ -179,6 +200,42 @@ class Game {
             // Keep isPaused = true so game stays frozen
         };
         if (quitBtn) quitBtn.onclick = () => location.reload();
+    }
+
+    // Background music control
+    playBackgroundMusic() {
+        try {
+            if (!this.bgAudio) {
+                this.bgAudio = new Audio('src/assets/background-music-by-suno.mp3');
+                this.bgAudio.loop = true;
+                this.bgAudio.volume = this.bgMusicVolume;
+                this.bgAudio.preload = 'auto';
+            }
+            // Try to play; browsers require a user gesture which is satisfied by Play button click
+            const playPromise = this.bgAudio.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch(() => {
+                    // ignore play errors (autoplay blocked); will attempt later on user gesture
+                });
+            }
+        } catch (e) {
+            console.warn('Could not play background music:', e);
+        }
+    }
+
+    pauseBackgroundMusic() {
+        if (this.bgAudio && !this.bgAudio.paused) {
+            try { this.bgAudio.pause(); } catch (e) {}
+        }
+    }
+
+    stopBackgroundMusic() {
+        if (this.bgAudio) {
+            try {
+                this.bgAudio.pause();
+                this.bgAudio.currentTime = 0;
+            } catch (e) {}
+        }
     }
 
     onWindowResize() {

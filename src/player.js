@@ -34,11 +34,11 @@ export class Player {
 
         // Weapons
         this.allWeapons = [
-            { name: 'Pistola', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5, range: 30 },
+            { name: 'Pistola', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5, range: 50 },
             // Faster punch, no charge time
             { name: 'Soco', ammo: Infinity, maxAmmo: Infinity, magazineSize: Infinity, currentMag: Infinity, damage: 10, cooldown: 0.2, lastShot: 0, reloadTime: 0, range: 3 },
-            { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0, range: 100 },
-            { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0, range: 500 }
+            { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0, range: 120 },
+            { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0, range: 400 }
         ];
 
         
@@ -407,27 +407,42 @@ export class Player {
 
         // Check enemies (only if closer than world hit)
         if (this.enemyManager && this.enemyManager.enemies) {
-            const intersects = raycaster.intersectObjects(this.enemyManager.enemies.map(e => e.mesh));
+            const intersects = raycaster.intersectObjects(this.enemyManager.enemies.map(e => e.mesh), true);
             if (intersects.length > 0) {
                 const hitPoint = intersects[0].point;
                 const distanceToEnemy = bulletStart.distanceTo(hitPoint);
                 const distanceToWorld = bulletStart.distanceTo(bulletEnd);
                 
-                // Only hit enemy if it's closer than world object AND within weapon range
-                if (distanceToEnemy < distanceToWorld && distanceToEnemy <= weapon.range) {
+                // Only hit enemy if it's closer than world object
+                if (distanceToEnemy < distanceToWorld) {
                     const hitObject = intersects[0].object;
                     bulletEnd = hitPoint.clone();
                     hitSomething = true;
                     
                     // Find enemy instance (hitObject might be a child mesh)
-                    let enemy = this.enemyManager.enemies.find(e => e.mesh === hitObject);
-                    if (!enemy) {
-                         // Try checking parent if it's a group part
-                         enemy = this.enemyManager.enemies.find(e => e.mesh === hitObject.parent);
-                    }
+                    let enemy = null;
+                    // Try to resolve by traversing parents (in case the hit object is a child mesh)
+                    const findEnemyFromObject = (obj) => {
+                        let cur = obj;
+                        while (cur) {
+                            const found = this.enemyManager.enemies.find(e => e.mesh === cur);
+                            if (found) return found;
+                            cur = cur.parent;
+                        }
+                        return null;
+                    };
+                    enemy = findEnemyFromObject(hitObject);
 
                     if (enemy) {
-                        enemy.takeDamage(weapon.damage);
+                        // Check weapon range
+                        const distEnemy = bulletStart.distanceTo(enemy.position);
+                        const weaponRange = weapon.range || 1000;
+                        if (distEnemy <= weaponRange) {
+                            enemy.takeDamage(weapon.damage);
+                        } else {
+                            // Out of range: treat as miss
+                            hitSomething = false;
+                        }
                     }
                 }
             }
