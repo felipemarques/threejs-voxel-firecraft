@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import bgMusic from './assets/background-music-by-suno.mp3';
 import { World } from './world.js';
 import { Player } from './player.js';
 import { HUD } from './hud.js';
@@ -231,7 +232,7 @@ class Game {
     playBackgroundMusic() {
         try {
             if (!this.bgAudio) {
-                this.bgAudio = new Audio('src/assets/background-music-by-suno.mp3');
+                this.bgAudio = new Audio(bgMusic);
                 this.bgAudio.loop = true;
                 this.bgAudio.volume = this.bgMusicVolume;
                 this.bgAudio.preload = 'auto';

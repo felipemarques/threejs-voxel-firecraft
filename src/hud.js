@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import defeatSfx from './assets/mixkit-player-losing-or-failing.wav';
+import victorySfx from './assets/game-level-completed-envato-mixkit.co.wav';
 export class HUD {
     constructor(player, settings) {
         this.player = player;
@@ -336,7 +338,7 @@ export class HUD {
         try {
             if (typeof window !== 'undefined' && window.game && message && message.toUpperCase().includes('DIED')) {
                 if (typeof window.game.playEndSequence === 'function') {
-                    window.game.playEndSequence('src/assets/mixkit-player-losing-or-failing.wav');
+                    window.game.playEndSequence(defeatSfx);
                 }
             }
         } catch (e) { }
@@ -347,7 +349,7 @@ export class HUD {
         document.getElementById('game-over-title').style.color = '#f1c40f'; // Gold color
         try {
             if (typeof window !== 'undefined' && window.game && typeof window.game.playEndSequence === 'function') {
-                window.game.playEndSequence('src/assets/game-level-completed-envato-mixkit.co.wav');
+                window.game.playEndSequence(victorySfx);
             }
         } catch (e) { }
     }

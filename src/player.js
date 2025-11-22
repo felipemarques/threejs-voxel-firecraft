@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import gunshotSfx from './assets/mixkit-game-gun-shot.mp3';
 
 export class Player {
     constructor(camera, scene, worldObjects, settings = {}) {
@@ -88,7 +89,7 @@ export class Player {
         this.sfxIndex = 0;
         try {
             for (let i = 0; i < 6; i++) {
-                const a = new Audio('src/assets/mixkit-game-gun-shot.mp3');
+                const a = new Audio(gunshotSfx);
                 a.preload = 'auto';
                 a.volume = this.sfxVolume;
                 this.sfxPool.push(a);
