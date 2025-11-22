@@ -6,6 +6,7 @@ import { HUD } from './hud.js';
 import { EnemyManager } from './enemies.js';
 import { ItemManager } from './items.js';
 import { TouchControls } from './touchControls.js';
+import { createDebugOverlay } from './debugOverlay.js';
 
 
 class Game {
@@ -472,3 +473,23 @@ Game.prototype._logRenderMaterialDiagnostics = function(originalError) {
 
 // Start the game
 window.game = new Game();
+
+// Setup debug overlay: shows on-screen logs when enabled in settings or via localStorage/flag
+(function setupDebugOverlay(){
+    try {
+        const saved = JSON.parse(localStorage.getItem('voxel-fortnite-settings') || '{}');
+        const want = (saved && saved.debugMode) || localStorage.getItem('showDebugOverlay') === 'true' || !!window.DEBUG_OVERLAY;
+        // create overlay (it patches console); auto-show only when requested
+        window.debugOverlay = createDebugOverlay({ autoShow: !!want });
+
+        // keyboard quick-toggle (backtick) for convenience on desktop
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '`' && window.debugOverlay) {
+                const el = document.getElementById('debug-overlay');
+                if (el && el.classList.contains('hidden')) window.debugOverlay.show(); else if (window.debugOverlay) window.debugOverlay.hide();
+            }
+        });
+    } catch (e) {
+        console.warn('debugOverlay init failed', e);
+    }
+})();

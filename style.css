@@ -444,3 +444,49 @@ html {
     .tc-joystick { bottom: 140px; }
     .tc-buttons { bottom: 140px; }
 }
+
+/* Debug overlay styles */
+.debug-overlay {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    width: min(520px, 95vw);
+    max-height: 60vh;
+    background: rgba(10,10,10,0.85);
+    color: #e6e6e6;
+    font-family: monospace;
+    font-size: 12px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+}
+.debug-overlay.hidden { display: none; }
+.debug-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.debug-overlay-actions button {
+    margin-left: 8px;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    border: 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.debug-overlay-list {
+    padding: 8px 10px;
+    overflow: auto;
+    flex: 1 1 auto;
+}
+.debug-line { padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debug-log { color: #ddd; }
+.debug-info { color: #9ad1ff; }
+.debug-warn { color: #ffd479; }
+.debug-error { color: #ff9b9b; }
