@@ -33,10 +33,12 @@ export class EnemyManager {
     }
 
     spawnEnemy() {
-        const x = (Math.random() - 0.5) * 100;
-        const z = (Math.random() - 0.5) * 100;
+        const spawnSpan = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
+        const x = (Math.random() - 0.5) * spawnSpan;
+        const z = (Math.random() - 0.5) * spawnSpan;
         
-        const enemy = new Bot(this.scene, x, 0, z, this.difficulty);
+        const mapHalfSize = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
+        const enemy = new Bot(this.scene, x, 0, z, this.difficulty, mapHalfSize);
         enemy.audioCtx = this.audioCtx; // Pass audio context to bot
         enemy.deathBuffer = this.deathBuffer; // Pass death buffer
         this.enemies.push(enemy);
@@ -66,9 +68,10 @@ export class EnemyManager {
 
 
 class Bot {
-    constructor(scene, x, y, z, difficulty) {
+    constructor(scene, x, y, z, difficulty, mapHalfSize = 100) {
         this.scene = scene;
         this.position = new THREE.Vector3(x, y, z);
+        this.mapHalfSize = mapHalfSize;
         
         // Stats based on difficulty
         if (difficulty === 'easy') {
@@ -250,15 +253,16 @@ class Bot {
 
             // Pick a new wander target periodically or if none
             if (!this.wanderTarget || this.wanderTimer > this.wanderChangeInterval) {
-                // Choose a random point near current position but within world bounds (~ -90..90)
+                // Choose a random point near current position but within world bounds
                 const radius = 10 + Math.random() * 30; // wander radius
                 const angle = Math.random() * Math.PI * 2;
                 const tx = this.position.x + Math.cos(angle) * radius;
                 const tz = this.position.z + Math.sin(angle) * radius;
                 // Clamp to world bounds
                 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-                const nx = clamp(tx, -90, 90);
-                const nz = clamp(tz, -90, 90);
+                const wanderLimit = this.mapHalfSize * 0.9;
+                const nx = clamp(tx, -wanderLimit, wanderLimit);
+                const nz = clamp(tz, -wanderLimit, wanderLimit);
                 this.wanderTarget = new THREE.Vector3(nx, 0, nz);
                 this.wanderTimer = 0;
                 this.wanderChangeInterval = 2 + Math.random() * 4;

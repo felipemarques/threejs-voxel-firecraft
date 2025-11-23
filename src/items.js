@@ -1,11 +1,14 @@
 import * as THREE from 'three';
+import { DEFAULT_MAP_SIZE } from './world.js';
 
 export class ItemManager {
-    constructor(scene, player) {
+    constructor(scene, player, settings) {
         this.scene = scene;
         this.player = player;
         this.items = [];
         this.interactionPrompt = document.getElementById('interaction-prompt');
+        this.mapSize = (settings && settings.mapSize) ? settings.mapSize : DEFAULT_MAP_SIZE;
+        this.spawnSpan = this.mapSize * 0.75; // Keep loot inside playable area with margin
         
         this.initLoot();
         
@@ -17,16 +20,16 @@ export class ItemManager {
 
     initLoot() {
         // Create some random chests/items
-        for (let i = 0; i < 8; i++) {
-            const x = (Math.random() - 0.5) * 150;
-            const z = (Math.random() - 0.5) * 150;
+        for (let i = 0; i < 16; i++) {
+            const x = (Math.random() - 0.5) * this.spawnSpan;
+            const z = (Math.random() - 0.5) * this.spawnSpan;
             this.createChest(x, 0.5, z);
         }
 
         // Spawn some stamina items (juice bottles)
-        for (let i = 0; i < 12; i++) {
-            const x = (Math.random() - 0.5) * 150;
-            const z = (Math.random() - 0.5) * 150;
+        for (let i = 0; i < 24; i++) {
+            const x = (Math.random() - 0.5) * this.spawnSpan;
+            const z = (Math.random() - 0.5) * this.spawnSpan;
             this.spawnJuiceBottle(x, z);
         }
     }

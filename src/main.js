@@ -221,7 +221,7 @@ class Game {
         this.player = new Player(this.camera, this.scene, null, settings);
         
         // 2. ItemManager (needs player)
-        this.itemManager = new ItemManager(this.scene, this.player);
+        this.itemManager = new ItemManager(this.scene, this.player, settings);
         
         // 3. World (needs itemManager)
         this.world = new World(this.scene, this.itemManager, settings);
@@ -645,7 +645,6 @@ window.addEventListener('game-touch-look', (ev) => {
     try {
         const d = ev.detail || { dx: 0, dy: 0 };
         const sens = 0.003; // Lower sensitivity for smoother control
-        console.log('Touch look:', d.dx, d.dy); // Debug log
         if (window.game && window.game.player) {
             try {
                 // call player method if exists

@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 
+export const DEFAULT_MAP_SIZE = 400;
+
 export class World {
     constructor(scene, itemManager, settings) {
         this.scene = scene;
         this.itemManager = itemManager;
         this.objects = []; // Objects for collision detection
-        this.stormRadius = 100;
+        // Map dimensions (doubled to 400 x 400 by default)
+        this.mapSize = (settings && settings.mapSize) ? settings.mapSize : DEFAULT_MAP_SIZE;
+        this.halfMapSize = this.mapSize / 2;
+        this.stormRadius = this.halfMapSize;
+        this.initialStormRadius = this.stormRadius;
         
         const stormTime = settings ? settings.stormTime : 180; // seconds
         this.stormShrinkRate = this.stormRadius / stormTime; 
@@ -21,8 +27,10 @@ export class World {
     }
 
     createEnvironment() {
+        const randCoord = (spread = 1) => (Math.random() - 0.5) * (this.mapSize * spread);
+        
         // Ground
-        const groundGeo = new THREE.PlaneGeometry(200, 200, 64, 64);
+        const groundGeo = new THREE.PlaneGeometry(this.mapSize, this.mapSize, 128, 128);
         
         // Improved Ground Material (Vertex Colors for variation)
         const count = groundGeo.attributes.position.count;
@@ -54,9 +62,9 @@ export class World {
         this.objects.push(ground);
 
         // Trees
-        for (let i = 0; i < 50; i++) {
-            const x = (Math.random() - 0.5) * 180;
-            const z = (Math.random() - 0.5) * 180;
+        for (let i = 0; i < 100; i++) {
+            const x = randCoord(0.9);
+            const z = randCoord(0.9);
             
             const type = Math.random() > 0.5 ? 'Oak' : 'Pine';
             const tree = this.createTree(x, z, type);
@@ -66,18 +74,18 @@ export class World {
         }
 
         // Rocks
-        for (let i = 0; i < 30; i++) {
-            const x = (Math.random() - 0.5) * 180;
-            const z = (Math.random() - 0.5) * 180;
+        for (let i = 0; i < 60; i++) {
+            const x = randCoord(0.9);
+            const z = randCoord(0.9);
             const rock = this.createRock(x, z);
             rock.userData = { gameId: this.generateID(), gameName: 'Rock' };
             this.scene.add(rock);
             this.objects.push(rock);
         }
         // Small bushes
-        for (let i = 0; i < 40; i++) {
-            const x = (Math.random() - 0.5) * 170;
-            const z = (Math.random() - 0.5) * 170;
+        for (let i = 0; i < 80; i++) {
+            const x = randCoord(0.85);
+            const z = randCoord(0.85);
             const bush = this.createBush(x, z);
             bush.userData = { gameId: this.generateID(), gameName: 'Bush' };
             this.scene.add(bush);
@@ -85,17 +93,17 @@ export class World {
         }
 
         // Scattered grass clumps across the map for texture
-        for (let i = 0; i < 200; i++) {
-            const x = (Math.random() - 0.5) * 190;
-            const z = (Math.random() - 0.5) * 190;
+        for (let i = 0; i < 400; i++) {
+            const x = randCoord(0.95);
+            const z = randCoord(0.95);
             const g = this.createGrassClump(x, z);
             this.scene.add(g);
         }
         
         // Buildings
-        for (let i = 0; i < 8; i++) {
-            const x = (Math.random() - 0.5) * 150;
-            const z = (Math.random() - 0.5) * 150;
+        for (let i = 0; i < 16; i++) {
+            const x = randCoord(0.75);
+            const z = randCoord(0.75);
             const house = this.createHouse(x, z);
             house.userData = { gameId: this.generateID(), gameName: 'House', type: 'house' };
             this.scene.add(house);
@@ -106,9 +114,9 @@ export class World {
         }
         
         // Vehicles (Cars and Trucks)
-        for (let i = 0; i < 12; i++) {
-            const x = (Math.random() - 0.5) * 160;
-            const z = (Math.random() - 0.5) * 160;
+        for (let i = 0; i < 24; i++) {
+            const x = randCoord(0.8);
+            const z = randCoord(0.8);
             const type = Math.random() > 0.6 ? 'truck' : 'car';
             const vehicle = this.createVehicle(x, z, type);
             vehicle.userData = { gameId: this.generateID(), gameName: `Vehicle_${type}`, type: 'vehicle' };
@@ -464,7 +472,7 @@ export class World {
         // Shrink storm
         if (this.stormRadius > 10) {
             this.stormRadius -= this.stormShrinkRate * dt;
-            const scale = this.stormRadius / 100; 
+            const scale = this.initialStormRadius ? (this.stormRadius / this.initialStormRadius) : 1;
             this.stormMesh.scale.set(scale, 1, scale);
         }
 
