@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import deathSfx from './assets/mixkit-kill-blood-zombie.mp3';
 
 export class EnemyManager {
     constructor(scene, player, world, settings) {
@@ -15,6 +16,20 @@ export class EnemyManager {
 
         // Initial spawn
         for(let i=0; i<count; i++) this.spawnEnemy();
+        
+        // Load death SFX (Web Audio API)
+        this.deathBuffer = null;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.audioCtx = new AudioContext();
+                fetch(deathSfx)
+                    .then(r => r.arrayBuffer())
+                    .then(b => this.audioCtx.decodeAudioData(b))
+                    .then(d => { this.deathBuffer = d; })
+                    .catch(e => {});
+            }
+        } catch(e) {}
     }
 
     spawnEnemy() {
@@ -22,6 +37,8 @@ export class EnemyManager {
         const z = (Math.random() - 0.5) * 100;
         
         const enemy = new Bot(this.scene, x, 0, z, this.difficulty);
+        enemy.audioCtx = this.audioCtx; // Pass audio context to bot
+        enemy.deathBuffer = this.deathBuffer; // Pass death buffer
         this.enemies.push(enemy);
     }
 
@@ -175,38 +192,57 @@ class Bot {
         let isMoving = false;
 
         if (this.state === 'chase') {
-            const direction = new THREE.Vector3().subVectors(playerPos, this.position).normalize();
-            direction.y = 0; // Stay on ground
+            // Check if player is visible (line of sight)
+            const canSeePlayer = this.hasLineOfSight(player, playerPos);
             
-            // Smart Movement with Strafing
-            // Chase until close (melee range)
-            if (dist > this.attackRange - 0.5) { 
-                // Move towards player
-                const moveDir = direction.clone();
+            if (dist < this.detectionRange && canSeePlayer) {
+                // Chase player
+                const direction = new THREE.Vector3().subVectors(playerPos, this.position).normalize();
+                direction.y = 0; // Stay on ground
                 
-                // Add strafing (sine wave based on time + random offset per bot)
-                const strafe = Math.sin(performance.now() / 500 + this.position.x) * 0.5;
-                const strafeVec = new THREE.Vector3(direction.z, 0, -direction.x).multiplyScalar(strafe);
-                
-                moveDir.add(strafeVec).normalize();
-                
-                this.position.add(moveDir.multiplyScalar(this.speed * dt));
-                this.mesh.lookAt(playerPos);
-                isMoving = true;
-            } else {
-                // In melee range, just look at player
-                this.mesh.lookAt(playerPos);
-            }
-
-            // Attack
-            if (dist < this.attackRange) { // Can attack if in melee range
-                const now = performance.now() / 1000;
-                if (now - this.lastAttack > this.attackCooldown) {
-                    // Apply damage and trigger attack animation (handled below)
-                    player.takeDamage(this.damage);
-                    this.lastAttack = now;
-                    this.attackAnimTime = this.attackAnimDuration;
+                // Maintain minimum distance (don't overlap with player)
+                const minDistance = 2.0; // Minimum 2 units away
+                if (dist > minDistance) { 
+                    // Move towards player
+                    const moveDir = direction.clone();
+                    
+                    // Add strafing (sine wave based on time + random offset per bot)
+                    const strafe = Math.sin(performance.now() / 500 + this.position.x) * 0.5;
+                    const strafeVec = new THREE.Vector3(direction.z, 0, -direction.x).multiplyScalar(strafe);
+                    
+                    moveDir.add(strafeVec).normalize();
+                    
+                    // Check collision before moving
+                    const nextPos = this.position.clone().add(moveDir.multiplyScalar(this.speed * dt));
+                    if (!this.checkCollision(nextPos)) {
+                        this.position.copy(nextPos);
+                    }
+                    
+                    this.mesh.lookAt(playerPos);
+                    isMoving = true;
+                } else {
+                    // Too close, back away slightly
+                    const backDir = direction.clone().multiplyScalar(-1);
+                    const nextPos = this.position.clone().add(backDir.multiplyScalar(this.speed * dt * 0.5));
+                    if (!this.checkCollision(nextPos)) {
+                        this.position.copy(nextPos);
+                    }
+                    this.mesh.lookAt(playerPos);
                 }
+
+                // Attack
+                if (dist < this.attackRange) { // Can attack if in melee range
+                    const now = performance.now() / 1000;
+                    if (now - this.lastAttack > this.attackCooldown) {
+                        // Apply damage and trigger attack animation (handled below)
+                        player.takeDamage(this.damage);
+                        this.lastAttack = now;
+                        this.attackAnimTime = this.attackAnimDuration;
+                    }
+                }
+            } else {
+                // Can't see player, switch to wander
+                this.state = 'wander';
             }
         } else {
             // Wander logic (simple random movement)
@@ -335,14 +371,94 @@ class Bot {
         }, 100);
 
         if (this.health <= 0) {
-            this.die();
+            this.isDead = true;
+            this.scene.remove(this.mesh);
+            
+            // Play death sound
+            try {
+                if (this.audioCtx && this.deathBuffer && this.audioCtx.state === 'running') {
+                    const src = this.audioCtx.createBufferSource();
+                    src.buffer = this.deathBuffer;
+                    const gain = this.audioCtx.createGain();
+                    gain.gain.value = 0.5; // Volume
+                    src.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    src.start(0);
+                } else if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+            } catch (e) {}
         }
     }
 
+    checkCollision(nextPos) {
+        // Check collision with world objects (houses, trees, etc)
+        if (!this.scene) return false;
+        
+        const checkRadius = 0.5; // NPC collision radius
+        
+        // Check all objects in scene
+        for (let child of this.scene.children) {
+            if (child.userData && (child.userData.type === 'house' || child.userData.type === 'tree')) {
+                const objPos = child.position;
+                const dist = Math.sqrt(
+                    Math.pow(nextPos.x - objPos.x, 2) + 
+                    Math.pow(nextPos.z - objPos.z, 2)
+                );
+                
+                // Simple radius-based collision
+                const objRadius = child.userData.type === 'house' ? 5 : 2;
+                if (dist < (checkRadius + objRadius)) {
+                    return true; // Collision detected
+                }
+            }
+        }
+        
+        return false; // No collision
+    }
+    
+    hasLineOfSight(player, playerPos) {
+        // Raycast from NPC to player to check for obstacles
+        if (!this.scene) return true;
+        
+        const direction = new THREE.Vector3().subVectors(playerPos, this.position).normalize();
+        const distance = this.position.distanceTo(playerPos);
+        
+        const raycaster = new THREE.Raycaster(
+            this.position.clone().add(new THREE.Vector3(0, 1, 0)), // Start from head height
+            direction,
+            0,
+            distance
+        );
+        
+        // Check for obstacles
+        const intersects = raycaster.intersectObjects(this.scene.children, true);
+        
+        for (let intersect of intersects) {
+            // Ignore self, player, and non-blocking objects
+            if (intersect.object === this.mesh || 
+                intersect.object.parent === this.mesh ||
+                intersect.object === player.mesh ||
+                intersect.object.parent === player.mesh) {
+                continue;
+            }
+            
+            // Check if it's a blocking object (house, tree)
+            let obj = intersect.object;
+            while (obj.parent && obj.parent !== this.scene) {
+                obj = obj.parent;
+            }
+            
+            if (obj.userData && (obj.userData.type === 'house' || obj.userData.type === 'tree')) {
+                return false; // Line of sight blocked
+            }
+        }
+        
+        return true; // Clear line of sight
+    }
 
     die() {
         this.isDead = true;
         this.scene.remove(this.mesh);
     }
 }
-

@@ -14,6 +14,8 @@ export class TouchControls {
         this.stick = document.createElement('div');
         this.stick.className = 'tc-stick';
         this.joystick.appendChild(this.stick);
+        
+        // Right joystick removed in favor of full screen drag area (Free Fire style)
 
         // Buttons (right)
         this.buttons = document.createElement('div');
@@ -31,13 +33,20 @@ export class TouchControls {
         this.sprintBtn = document.createElement('button');
         this.sprintBtn.className = 'tc-btn';
         this.sprintBtn.innerText = 'SPRINT';
+        
+        this.interactBtn = document.createElement('button');
+        this.interactBtn.className = 'tc-btn tc-interact-btn';
+        this.interactBtn.innerText = 'E';
+        this.interactBtn.style.display = 'none'; // Hidden by default
 
         this.buttons.appendChild(this.fireBtn);
         this.buttons.appendChild(this.jumpBtn);
         this.buttons.appendChild(this.sprintBtn);
+        this.buttons.appendChild(this.interactBtn);
 
         // Add to container
         this.container.appendChild(this.joystick);
+        // this.container.appendChild(this.lookJoystick); // Removed
         this.container.appendChild(this.buttons);
         this.container.classList.remove('hidden');
 
@@ -45,11 +54,15 @@ export class TouchControls {
         this.active = false;
         this.startPos = null;
         this.currentPos = { x: 0, y: 0 };
+        
+        this.lookActive = false;
+        this.lookStartPos = null;
 
         // Bind events
         this._bindJoystick();
+        // this._bindLookJoystick(); // Removed
         this._bindButtons();
-        this._bindLookArea();
+        this._bindLookArea(); // Keep full screen area for broad swipes if missed joystick
 
         // Default sensitivity
         this.deadZone = 10; // px
@@ -73,6 +86,7 @@ export class TouchControls {
         try {
             this.container.classList.add('hidden');
             this.container.removeChild(this.joystick);
+            // this.container.removeChild(this.lookJoystick); // Removed
             this.container.removeChild(this.buttons);
             document.body.style.touchAction = '';
             if (this.player) this.player.allowTouchMovement = false;
@@ -132,6 +146,8 @@ export class TouchControls {
         this.joystick.addEventListener('touchcancel', release);
     }
 
+    // _bindLookJoystick removed
+
     _bindButtons() {
         // Fire: continuous touch = continuous shooting
         let fireInterval = null;
@@ -170,6 +186,24 @@ export class TouchControls {
             e.preventDefault();
             if (this.player) this.player.isSprinting = false;
         });
+        
+        // Interact button
+        this.interactBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // Trigger interaction with items
+            if (window.game && window.game.itemManager) {
+                window.game.itemManager.tryInteract();
+            }
+        });
+    }
+    
+    update() {
+        // Show/hide interact button based on nearby items
+        if (window.game && window.game.itemManager && window.game.itemManager.currentItem) {
+            this.interactBtn.style.display = 'block';
+        } else {
+            this.interactBtn.style.display = 'none';
+        }
     }
 
     _bindLookArea() {
@@ -187,31 +221,57 @@ export class TouchControls {
             this.lookArea.style.zIndex = '190'; // Below controls
             this.lookArea.style.background = 'transparent';
             this.lookArea.style.touchAction = 'none';
+            this.lookArea.style.pointerEvents = 'auto'; // Force capture events
             this.container.appendChild(this.lookArea);
 
-            let active = false;
-            let lastX = 0, lastY = 0;
+            let lookTouchId = null;
+            let lastX = 0;
+            let lastY = 0;
 
-            this.lookArea.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                active = true;
-                lastX = e.clientX; lastY = e.clientY;
-                try { this.lookArea.setPointerCapture && this.lookArea.setPointerCapture(e.pointerId); } catch (err) {}
+            this.lookArea.addEventListener('touchstart', (e) => {
+                // If we already have a finger controlling look, ignore new ones
+                if (lookTouchId !== null) return;
+
+                // Find a touch that is NOT on the joystick/buttons (though z-index should handle this, explicit check is safer)
+                // Since lookArea is behind, we just take the first changed touch that bubbled here
+                const touch = e.changedTouches[0];
+                lookTouchId = touch.identifier;
+                lastX = touch.clientX;
+                lastY = touch.clientY;
+                // Don't preventDefault here if we want clicks to pass through, but for game control we usually want to prevent scrolling
+                if (e.cancelable) e.preventDefault();
             }, { passive: false });
 
-            this.lookArea.addEventListener('pointermove', (e) => {
-                if (!active) return;
-                e.preventDefault();
-                const dx = e.clientX - lastX;
-                const dy = e.clientY - lastY;
-                lastX = e.clientX; lastY = e.clientY;
-                // Dispatch normalized delta so game can apply sensitivity
-                this._dispatchTouchLook(dx, dy);
+            this.lookArea.addEventListener('touchmove', (e) => {
+                if (lookTouchId === null) return;
+                if (e.cancelable) e.preventDefault();
+
+                // Find the specific touch we are tracking
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === lookTouchId) {
+                        const t = e.changedTouches[i];
+                        const dx = t.clientX - lastX;
+                        const dy = t.clientY - lastY;
+                        lastX = t.clientX;
+                        lastY = t.clientY;
+                        this._dispatchTouchLook(dx, dy);
+                        break;
+                    }
+                }
             }, { passive: false });
 
-            const release = (e) => { active = false; try { this.lookArea.releasePointerCapture && this.lookArea.releasePointerCapture(e && e.pointerId); } catch (err) {} };
-            this.lookArea.addEventListener('pointerup', release);
-            this.lookArea.addEventListener('pointercancel', release);
+            const release = (e) => {
+                if (lookTouchId === null) return;
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === lookTouchId) {
+                        lookTouchId = null;
+                        break;
+                    }
+                }
+            };
+
+            this.lookArea.addEventListener('touchend', release);
+            this.lookArea.addEventListener('touchcancel', release);
 
         } catch (e) {}
     }

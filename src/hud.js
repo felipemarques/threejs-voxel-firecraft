@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import defeatSfx from './assets/mixkit-player-losing-or-failing.wav';
-import victorySfx from './assets/game-level-completed-envato-mixkit.co.wav';
+import defeatSfx from './assets/mixkit-player-losing-or-failing.mp3';
+import victorySfx from './assets/game-level-completed-envato-mixkit.co.mp3';
 export class HUD {
     constructor(player, settings) {
         this.player = player;
@@ -107,7 +107,10 @@ export class HUD {
     }
 
     update() {
-                // Outline overlay for hovered NPC: create/remove a separate highlight group so we don't modify original materials
+        // Reset hoveredEnemy at the start of each frame to prevent sticky targeting
+        this.hoveredEnemy = null;
+
+        // Outline overlay for hovered NPC: create/remove a separate highlight group so we don't modify original materials
                 if (this.player && this.player.enemyManager && this.player.enemyManager.enemies.length > 0) {
                     // If hovered enemy changed, remove previous outline and create a new one
                     if (this.currentOutlinedEnemy !== this.hoveredEnemy) {
@@ -256,7 +259,9 @@ export class HUD {
                         if (found) break;
                         cur = cur.parent;
                     }
-                    if (found) this.hoveredEnemy = found;
+                    if (found) this.hoveredEnemy = found; else this.hoveredEnemy = null;
+                } else {
+                    this.hoveredEnemy = null;
                 }
             }
         }
@@ -345,13 +350,30 @@ export class HUD {
     }
 
     showGameOver(message) {
+        // Prevent multiple calls
+        if (this.gameOverShown) return;
+        this.gameOverShown = true;
+        
         this.gameOverScreen.classList.remove('hidden');
         document.getElementById('game-over-title').innerText = message;
         
+        // Hide touch controls on game over
+        try {
+            const touchControls = document.getElementById('touch-controls');
+            if (touchControls) {
+                touchControls.style.display = 'none';
+            }
+        } catch (e) {}
+        
         // Simple restart logic
-        document.getElementById('restart-btn').onclick = () => {
+        const restartBtn = document.getElementById('restart-btn');
+        restartBtn.onclick = () => {
             location.reload();
         };
+        // Ensure button is clickable on tablet
+        restartBtn.style.pointerEvents = 'auto';
+        restartBtn.style.cursor = 'pointer';
+        
         // If this is a death message, trigger defeat audio sequence on the global game object
         try {
             if (typeof window !== 'undefined' && window.game && message && message.toUpperCase().includes('DIED')) {
@@ -363,8 +385,19 @@ export class HUD {
     }
 
     showVictory() {
+        // Reset flag to allow showGameOver to run
+        this.gameOverShown = false;
         this.showGameOver("VICTORY ROYALE!");
         document.getElementById('game-over-title').style.color = '#f1c40f'; // Gold color
+        
+        // Hide touch controls on victory
+        try {
+            const touchControls = document.getElementById('touch-controls');
+            if (touchControls) {
+                touchControls.style.display = 'none';
+            }
+        } catch (e) {}
+        
         try {
             if (typeof window !== 'undefined' && window.game && typeof window.game.playEndSequence === 'function') {
                 window.game.playEndSequence(victorySfx);

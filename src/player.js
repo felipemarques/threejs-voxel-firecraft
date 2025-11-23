@@ -85,23 +85,32 @@ export class Player {
         // Camera Mode (First Person / Third Person)
         this.cameraMode = settings.cameraMode || 'TPS'; // 'FPS' or 'TPS'
         this.fpsCameraOffset = new THREE.Vector3(0, 1.6, 0); // Eye level
-        this.tpsCameraOffset = new THREE.Vector3(0, 2, 4); // Behind and up
+        // Offset to right (1.0) to see past character (Right Shoulder View)
+        // Z reduced to 3.0 to bring character closer to camera
+        this.tpsCameraOffset = new THREE.Vector3(1.0, 1.8, 3.4); // Behind and up
         
         this.initControls();
 
         // Sound effects pool (gunshots)
         this.sfxVolume = 0.7;
-        this.sfxPool = [];
-        this.sfxIndex = 0;
+        // Sound effects (Web Audio API to avoid WebMediaPlayer limits)
+        this.sfxVolume = 0.7;
+        this.gunshotBuffer = null;
         try {
-            for (let i = 0; i < 6; i++) {
-                const a = new Audio(gunshotSfx);
-                a.preload = 'auto';
-                a.volume = this.sfxVolume;
-                this.sfxPool.push(a);
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.audioCtx = new AudioContext();
+                // Load gunshot buffer
+                fetch(gunshotSfx)
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => this.audioCtx.decodeAudioData(arrayBuffer))
+                    .then(audioBuffer => {
+                        this.gunshotBuffer = audioBuffer;
+                    })
+                    .catch(e => console.warn('Error loading gunshot SFX:', e));
             }
         } catch (e) {
-            console.warn('Could not initialize SFX pool:', e);
+            console.warn('Web Audio API not supported:', e);
         }
     }
 
@@ -117,6 +126,50 @@ export class Player {
         this.head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), skinMat);
         this.head.position.y = 1.75;
         this.mesh.add(this.head);
+        
+        // Cap (Baseball cap style)
+        const capMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c }); // Red cap
+        const capTop = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.1, 0.52), capMat);
+        capTop.position.set(0, 0.3, 0);
+        this.head.add(capTop);
+        
+        const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.02, 0.35), capMat);
+        capBrim.position.set(0, 0.22, 0.35);
+        this.head.add(capBrim);
+        
+        // Sunglasses
+        const glassesMat = new THREE.MeshStandardMaterial({ color: 0x000000 }); // Black frames
+        const glassLensMat = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a1a, 
+            transparent: true, 
+            opacity: 0.7,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        
+        // Left lens
+        const leftLens = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.02), glassLensMat);
+        leftLens.position.set(-0.12, 0.05, 0.26);
+        this.head.add(leftLens);
+        
+        // Right lens
+        const rightLens = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.02), glassLensMat);
+        rightLens.position.set(0.12, 0.05, 0.26);
+        this.head.add(rightLens);
+        
+        // Glasses bridge
+        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), glassesMat);
+        bridge.position.set(0, 0.05, 0.26);
+        this.head.add(bridge);
+        
+        // Glasses arms
+        const glassLeftArm = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.3), glassesMat);
+        glassLeftArm.position.set(-0.21, 0.05, 0.1);
+        this.head.add(glassLeftArm);
+        
+        const glassRightArm = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.3), glassesMat);
+        glassRightArm.position.set(0.21, 0.05, 0.1);
+        this.head.add(glassRightArm);
 
         // Body
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), material);
@@ -142,33 +195,53 @@ export class Player {
         // Weapon Models
         this.weaponModels = {};
 
-        // Pistol
+        // Pistol (Glock-style)
         const pistol = new THREE.Group();
-        const pBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.3), new THREE.MeshStandardMaterial({ color: 0x2c3e50 }));
-        pBarrel.position.set(0, -0.3, 0.2);
-        const pHandle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x000000 }));
-        pHandle.position.set(0, -0.4, 0.15);
-        pistol.add(pBarrel, pHandle);
+        const pSlide = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.35), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.3 }));
+        pSlide.position.set(0, -0.28, 0.2);
+        const pBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.15), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.9, roughness: 0.2 }));
+        pBarrel.position.set(0, -0.28, 0.4);
+        const pHandle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.25, 0.12), new THREE.MeshStandardMaterial({ color: 0x2c2c2c }));
+        pHandle.position.set(0, -0.42, 0.15);
+        const pTrigger = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.03), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+        pTrigger.position.set(0, -0.35, 0.18);
+        pistol.add(pSlide, pBarrel, pHandle, pTrigger);
         this.rightArmPivot.add(pistol);
         this.weaponModels['Pistol'] = pistol;
 
-        // Rifle
+        // Rifle (AR-15 style)
         const rifle = new THREE.Group();
-        const rBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.8), new THREE.MeshStandardMaterial({ color: 0x2c3e50 }));
-        rBarrel.position.set(0, -0.3, 0.4);
-        const rHandle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.1), new THREE.MeshStandardMaterial({ color: 0x000000 }));
-        rHandle.position.set(0, -0.4, 0.1);
-        rifle.add(rBarrel, rHandle);
+        const rBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.9), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.3 }));
+        rBarrel.position.set(0, -0.28, 0.45);
+        const rBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.4), new THREE.MeshStandardMaterial({ color: 0x2c2c2c }));
+        rBody.position.set(0, -0.3, 0.2);
+        const rHandle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.12), new THREE.MeshStandardMaterial({ color: 0x2c2c2c }));
+        rHandle.position.set(0, -0.44, 0.15);
+        const rStock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.25), new THREE.MeshStandardMaterial({ color: 0x3a3a3a }));
+        rStock.position.set(0, -0.28, -0.1);
+        const rMag = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.1), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+        rMag.position.set(0, -0.5, 0.2);
+        rifle.add(rBarrel, rBody, rHandle, rStock, rMag);
         this.rightArmPivot.add(rifle);
         this.weaponModels['Rifle'] = rifle;
 
-        // Sniper
+        // Sniper (AWP-style)
         const sniper = new THREE.Group();
-        const sBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x27ae60 }));
-        sBarrel.position.set(0, -0.3, 0.6);
-        const sScope = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.3), new THREE.MeshStandardMaterial({ color: 0x000000 }));
-        sScope.position.set(0, -0.2, 0.4);
-        sniper.add(sBarrel, sScope);
+        const sBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.3), new THREE.MeshStandardMaterial({ color: 0x1a5c1a, metalness: 0.6, roughness: 0.4 }));
+        sBarrel.position.set(0, -0.28, 0.65);
+        const sBody = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.5), new THREE.MeshStandardMaterial({ color: 0x2d5016 }));
+        sBody.position.set(0, -0.3, 0.25);
+        const sScope = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.9, roughness: 0.1 }));
+        sScope.rotation.z = Math.PI / 2;
+        sScope.position.set(0, -0.18, 0.4);
+        const sScopeLens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.02, 8), new THREE.MeshStandardMaterial({ color: 0x1a4d8f, metalness: 0.9, roughness: 0.1, emissive: 0x0a2040 }));
+        sScopeLens.rotation.z = Math.PI / 2;
+        sScopeLens.position.set(0, -0.18, 0.58);
+        const sStock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.3), new THREE.MeshStandardMaterial({ color: 0x3a2a1a }));
+        sStock.position.set(0, -0.28, -0.05);
+        const sBipod = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.15, 0.02), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+        sBipod.position.set(0, -0.42, 0.5);
+        sniper.add(sBarrel, sBody, sScope, sScopeLens, sStock, sBipod);
         this.rightArmPivot.add(sniper);
         this.weaponModels['Sniper'] = sniper;
 
@@ -204,6 +277,36 @@ export class Player {
         this.isPunching = false;
         this.punchSide = 0; // 0: Right, 1: Left
         this.isBlocking = false;
+        
+        // Touch look state - Initialize from camera if possible, or 0
+        this.yaw = 0;
+        this.pitch = 0;
+        if (this.camera) {
+            const e = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
+            this.yaw = e.y;
+            this.pitch = e.x;
+        }
+    }
+
+    rotateCamera(dx, dy) {
+        // dx, dy are angles in radians (positive = right/down)
+        if (!this.controls || !this.controls.isLocked) {
+            // Update state variables
+            this.yaw -= dx;
+            this.pitch -= dy;
+            
+            // Clamp pitch strictly (vertical limit)
+            const limit = Math.PI / 2 - 0.01;
+            this.pitch = Math.max(-limit, Math.min(limit, this.pitch));
+            
+            // Apply to camera
+            // Order YXZ is crucial for FPS/TPS to prevent roll
+            this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+            
+            // Note: We DO NOT sync mesh rotation here anymore.
+            // This allows the camera to orbit around the character freely (Free Fire style).
+            // The character will only rotate when moving.
+        }
     }
 
     initControls() {
@@ -425,18 +528,26 @@ export class Player {
 
         this.createMuzzleFlash();
         // Play gunshot SFX (use pooled audio elements to allow overlapping)
+        // Play gunshot SFX using Web Audio API
         try {
-            if (this.sfxPool && this.sfxPool.length > 0) {
-                const poolItem = this.sfxPool[this.sfxIndex % this.sfxPool.length];
-                // Slightly vary playback rate per weapon for variety
-                if (weapon.name === 'Pistol') poolItem.playbackRate = 1.0;
-                else if (weapon.name === 'Rifle') poolItem.playbackRate = 1.15;
-                else if (weapon.name === 'Sniper') poolItem.playbackRate = 0.9;
-                else poolItem.playbackRate = 1.0;
-                try { poolItem.currentTime = 0; } catch (e) {}
-                const p = poolItem.play();
-                if (p && typeof p.catch === 'function') p.catch(() => {});
-                this.sfxIndex++;
+            if (this.audioCtx && this.gunshotBuffer && this.audioCtx.state === 'running') {
+                const source = this.audioCtx.createBufferSource();
+                source.buffer = this.gunshotBuffer;
+                
+                // Pitch variation per weapon
+                if (weapon.name === 'Pistol') source.playbackRate.value = 1.0;
+                else if (weapon.name === 'Rifle') source.playbackRate.value = 1.15;
+                else if (weapon.name === 'Sniper') source.playbackRate.value = 0.9;
+                else source.playbackRate.value = 1.0;
+
+                const gainNode = this.audioCtx.createGain();
+                gainNode.gain.value = this.sfxVolume;
+                
+                source.connect(gainNode);
+                gainNode.connect(this.audioCtx.destination);
+                source.start(0);
+            } else if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume();
             }
         } catch (e) {
             // Non-fatal
@@ -635,11 +746,8 @@ export class Player {
                 // Smooth rotation could be added here
                 this.mesh.rotation.y = targetRotation;
             } else {
-                // If not moving, maybe rotate with camera? 
-                // Fortnite style: Body rotates with camera when aiming/shooting, but legs stay until threshold.
-                // Simple: Rotate body to match camera yaw.
-                const yaw = Math.atan2(camDir.x, camDir.z);
-                this.mesh.rotation.y = yaw;
+                // Idle: Do not force rotation. Allow camera to orbit freely.
+                // Character stays facing last direction.
             }
 
             this.mesh.position.y += this.velocity.y * dt;
@@ -705,6 +813,8 @@ export class Player {
             } else {
                 // Third Person: Camera behind and above player
                 idealOffset = this.tpsCameraOffset.clone();
+                // Apply camera rotation to the offset
+                // Since we use YXZ order for camera, we should apply it similarly or just use the quaternion which is auto-updated
                 idealOffset.applyQuaternion(this.camera.quaternion);
             }
             
@@ -712,11 +822,8 @@ export class Player {
             this.camera.position.copy(idealOffset);
 
             // Apply touch-controlled rotation (if any) when not using PointerLock
-            if (this.allowTouchMovement && !(this.controls && this.controls.isLocked)) {
-                // touch yaw/pitch are stored in _touchYaw/_touchPitch; apply to camera quaternion
-                this.camera.rotation.y = this._touchYaw;
-                this.camera.rotation.x = this._touchPitch;
-            }
+            // Note: rotateCamera() now handles this directly by setting camera.rotation.
+            // We don't need to re-apply it here, which avoids conflict.
             
             this.updateAnimations(dt);
         }

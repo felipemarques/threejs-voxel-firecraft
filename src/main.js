@@ -136,8 +136,8 @@ class Game {
                 showRenderedIds: showIdsCheckbox ? showIdsCheckbox.checked : false,
                 showTargetDistance: showTargetDistCheckbox ? showTargetDistCheckbox.checked : false,
                 musicVolume: volumeSlider ? parseInt(volumeSlider.value) : Math.round(this.bgMusicVolume * 100),
-                cameraMode: cameraSelect.value
-            ,
+                musicEnabled: document.getElementById('setting-music-enabled') ? document.getElementById('setting-music-enabled').checked : true,
+                cameraMode: cameraSelect.value,
                 useTouchControls: touchCheckbox ? touchCheckbox.checked : false
             };
             
@@ -146,8 +146,12 @@ class Game {
             
             // Hide Menu
             menu.style.display = 'none';
-            // Start background music (user gesture)
-            this.playBackgroundMusic();
+            // Start background music (user gesture) if enabled
+            if (settings.musicEnabled !== false) {
+                this.playBackgroundMusic();
+            } else {
+                this.stopBackgroundMusic();
+            }
             
             // Check if game is already running (resuming from pause/settings)
             if (this.player && this.world && this.enemyManager) {
@@ -172,6 +176,18 @@ class Game {
                 this.bgMusicVolume = v / 100;
                 if (this.bgAudio) {
                     try { this.bgAudio.volume = this.bgMusicVolume; } catch(e) {}
+                }
+            };
+        }
+        
+        // Music enabled checkbox live update
+        const musicEnabledCheckbox = document.getElementById('setting-music-enabled');
+        if (musicEnabledCheckbox) {
+            musicEnabledCheckbox.onchange = () => {
+                if (musicEnabledCheckbox.checked) {
+                    this.playBackgroundMusic();
+                } else {
+                    this.stopBackgroundMusic();
                 }
             };
         }
@@ -371,10 +387,20 @@ class Game {
             } catch (err) {
                 console.error('Error in hud.update:', err);
             }
+            
+            // Update touch controls (show/hide interact button)
+            try {
+                if (this.touchControls && typeof this.touchControls.update === 'function') {
+                    this.touchControls.update();
+                }
+            } catch (err) {
+                console.error('Error in touchControls.update:', err);
+            }
 
             // Check Victory
             try {
-                if (this.enemyManager.enemies.length === 0 && !this.player.isDead) {
+                if (this.enemyManager.enemies.length === 0 && !this.player.isDead && !this.victoryShown) {
+                    this.victoryShown = true; // Prevent multiple calls
                     this.hud.showVictory();
                     this.player.controls.unlock();
                 }
@@ -415,6 +441,12 @@ class Game {
 // Play an end-of-game sequence: lower background music to 20% and play an SFX/music file.
 Game.prototype.playEndSequence = function(sfxPath, options = {}) {
     try {
+        // Prevent multiple simultaneous calls
+        if (this._playingEndSequence) {
+            return;
+        }
+        this._playingEndSequence = true;
+        
         // Lower background music to 20% of configured volume
         if (this.bgAudio) {
             try {
@@ -425,7 +457,10 @@ Game.prototype.playEndSequence = function(sfxPath, options = {}) {
 
         // Stop any previous end-sequence audio
         if (this._endSequenceAudio) {
-            try { this._endSequenceAudio.pause(); } catch (e) {}
+            try { 
+                this._endSequenceAudio.pause(); 
+                this._endSequenceAudio.currentTime = 0;
+            } catch (e) {}
             this._endSequenceAudio = null;
         }
 
@@ -434,13 +469,35 @@ Game.prototype.playEndSequence = function(sfxPath, options = {}) {
         a.loop = options.loop || false;
         a.volume = options.volume !== undefined ? options.volume : 1.0;
         a.preload = 'auto';
-        const playPromise = a.play();
-        if (playPromise && typeof playPromise.then === 'function') {
-            playPromise.catch(() => {
-                // ignore playback errors (autoplay restrictions)
-            });
-        }
+        
+        // Store reference BEFORE attempting to play to avoid race conditions
         this._endSequenceAudio = a;
+        
+        // Load the audio first to ensure it's ready
+        a.load();
+        
+        // On mobile/tablet, audio playback requires user interaction
+        // Try to play after a small delay to ensure load() completes
+        setTimeout(() => {
+            const playPromise = a.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch((err) => {
+                    console.log('Audio playback blocked, waiting for user interaction:', err);
+                    // Set up one-time touch/click handler to resume audio
+                    const resumeAudio = () => {
+                        // Ensure audio is loaded before playing
+                        if (a.readyState < 2) {
+                            a.load();
+                        }
+                        a.play().catch(() => {});
+                        document.removeEventListener('touchstart', resumeAudio);
+                        document.removeEventListener('click', resumeAudio);
+                    };
+                    document.addEventListener('touchstart', resumeAudio, { once: true });
+                    document.addEventListener('click', resumeAudio, { once: true });
+                });
+            }
+        }, 100);
 
         // Optionally restore background volume after the audio ends
         a.addEventListener('ended', () => {
@@ -451,6 +508,7 @@ Game.prototype.playEndSequence = function(sfxPath, options = {}) {
             } catch (e) {}
             this._endSequenceAudio = null;
             this._prevBgVolume = null;
+            this._playingEndSequence = false; // Allow future end sequences
         });
     } catch (e) {
         console.warn('playEndSequence error:', e);
@@ -557,16 +615,22 @@ window.game = new Game();
 window.addEventListener('game-touch-look', (ev) => {
     try {
         const d = ev.detail || { dx: 0, dy: 0 };
-        const sens = 0.004; // sensitivity, tweak as needed
+        const sens = 0.003; // Lower sensitivity for smoother control
+        console.log('Touch look:', d.dx, d.dy); // Debug log
         if (window.game && window.game.player) {
             try {
                 // call player method if exists
                 if (typeof window.game.player.rotateCamera === 'function') {
-                    window.game.player.rotateCamera(-d.dx * sens, -d.dy * sens);
+                    // Pass positive deltas:
+                    // Drag Right (+dx) -> Subtract Yaw -> Look Right
+                    // Drag Down (+dy) -> Subtract Pitch -> Look Down
+                    window.game.player.rotateCamera(d.dx * sens, d.dy * sens);
                 } else {
                     // fallback: store into player's internal touch yaw/pitch
-                    window.game.player._touchYaw = (window.game.player._touchYaw || 0) - d.dx * sens;
-                    window.game.player._touchPitch = (window.game.player._touchPitch || 0) - d.dy * sens;
+                    // Increase sensitivity significantly for tablet feel
+                    const touchSens = 0.01; 
+                    window.game.player._touchYaw = (window.game.player._touchYaw || 0) - d.dx * touchSens;
+                    window.game.player._touchPitch = (window.game.player._touchPitch || 0) - d.dy * touchSens;
                     // clamp pitch
                     const limit = Math.PI / 2 - 0.1;
                     window.game.player._touchPitch = Math.max(-limit, Math.min(limit, window.game.player._touchPitch));
