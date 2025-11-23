@@ -59,7 +59,7 @@ export class ItemManager {
         chest.receiveShadow = true;
         
         // Random loot
-        const lootTable = ['Rifle', 'Sniper', 'Pistola', 'ShieldPotion'];
+        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion'];
         const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
 
         chest.userData = { 

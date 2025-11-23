@@ -37,6 +37,48 @@ export function createDebugOverlay({ maxLines = 400, autoShow = false } = {}) {
     container.appendChild(list);
     document.body.appendChild(container);
 
+    // Initial placement is handled by CSS (centered)
+
+    // Make the header draggable (pointer events) so users can move the overlay on touch/desktop
+    header.style.cursor = 'move';
+    let dragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    function onPointerMove(e) {
+        if (!dragging) return;
+        const nx = Math.max(0, Math.min(window.innerWidth - container.offsetWidth, e.clientX - dragOffsetX));
+        const ny = Math.max(0, Math.min(window.innerHeight - container.offsetHeight, e.clientY - dragOffsetY));
+        container.style.left = nx + 'px';
+        container.style.top = ny + 'px';
+        container.style.right = 'auto';
+    }
+
+    function onPointerUp(e) {
+        dragging = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        try { if (e && e.pointerId) container.releasePointerCapture && container.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+
+    header.addEventListener('pointerdown', (e) => {
+        try {
+            const rect = container.getBoundingClientRect();
+            // convert to fixed left/top so we can reposition
+            container.style.left = rect.left + 'px';
+            container.style.top = rect.top + 'px';
+            container.style.position = 'fixed';
+            container.style.transform = 'none'; // Remove centering transform
+            container.style.right = 'auto';
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+            dragging = true;
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            try { container.setPointerCapture && container.setPointerCapture(e.pointerId); } catch (err) {}
+        } catch (err) {}
+    }, { passive: false });
+
     function render() {
         // Keep latest at bottom
         list.innerHTML = '';
@@ -45,6 +87,7 @@ export function createDebugOverlay({ maxLines = 400, autoShow = false } = {}) {
             const li = document.createElement('div');
             li.className = 'debug-line debug-' + logs[i].level;
             const time = new Date(logs[i].ts).toLocaleTimeString();
+            // use pre-formatted single-line text so horizontal scroll shows full messages
             li.textContent = `[${time}] ${logs[i].level.toUpperCase()}: ${logs[i].msg}`;
             list.appendChild(li);
         }

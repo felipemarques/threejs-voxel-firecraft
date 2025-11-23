@@ -6,6 +6,30 @@ import { HUD } from './hud.js';
 import { EnemyManager } from './enemies.js';
 import { ItemManager } from './items.js';
 import { TouchControls } from './touchControls.js';
+
+// Mobile/coarse-pointer detection used to avoid Pointer Lock on touch devices
+const IS_MOBILE = (() => {
+    try {
+        if (typeof navigator === 'undefined') return false;
+        return /Mobi|Android|iPhone|iPad|Tablet|Mobile/i.test(navigator.userAgent)
+            || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    } catch (e) { return false; }
+})();
+
+// Suppress known Chromium UnknownError spam from pointer/fullscreen promises
+window.addEventListener('unhandledrejection', (ev) => {
+    try {
+        const reason = ev.reason;
+        const msg = reason && reason.message ? reason.message : String(reason);
+        if (msg && msg.includes('If you see this error we have a bug')) {
+            // prevent the devtools from filling with this known Chromium runtime issue
+            console.warn('Suppressed Chromium UnknownError:', msg);
+            ev.preventDefault && ev.preventDefault();
+            return;
+        }
+    } catch (e) {}
+    // allow other rejections to surface
+});
 import { createDebugOverlay } from './debugOverlay.js';
 
 
@@ -188,9 +212,13 @@ class Game {
         // Only lock pointer when clicking the game canvas (prevents accidental locks from UI clicks)
         const canvas = this.renderer.domElement;
         canvas.addEventListener('click', () => {
-            if (!this.player.controls.isLocked && !this.player.isDead) {
-                this.player.lockControls();
-            }
+            // Do not attempt Pointer Lock on mobile devices; use touch-look instead
+            if (IS_MOBILE) return;
+            try {
+                if (this.player && this.player.controls && !this.player.controls.isLocked && !this.player.isDead) {
+                    this.player.lockControls();
+                }
+            } catch (e) { console.warn('Pointer lock request skipped or failed:', e); }
         });
 
         // Setup pause menu buttons
@@ -306,7 +334,10 @@ class Game {
         const cappedDt = Math.min(dt, 0.1); // Max 100ms per frame
 
         // Only update game logic if not paused
-        if (!this.isPaused && this.player && this.player.controls.isLocked) {
+        // Allow updates when PointerLock is active OR when touch controls are present (mobile)
+        const touchActive = !!(this.touchControls && this.touchControls.enabled);
+        const pointerLocked = !!(this.player && this.player.controls && this.player.controls.isLocked);
+        if (!this.isPaused && this.player && (pointerLocked || touchActive)) {
             // Execute updates with guarded logging to catch where errors originate
             try {
                 this.player.update(cappedDt);
@@ -489,7 +520,58 @@ window.game = new Game();
                 if (el && el.classList.contains('hidden')) window.debugOverlay.show(); else if (window.debugOverlay) window.debugOverlay.hide();
             }
         });
+
+        // Create a small floating toggle button so touch devices can open the overlay
+        try {
+            let btn = document.getElementById('debug-toggle-btn');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.id = 'debug-toggle-btn';
+                btn.title = 'Debug logs';
+                btn.innerText = 'DBG';
+                document.body.appendChild(btn);
+            }
+            // show/hide based on saved preference or always visible in development
+            const shouldShowButton = true; // keep available so users can toggle on devices
+            if (!shouldShowButton) btn.classList.add('hidden');
+
+            btn.addEventListener('click', (ev) => {
+                try {
+                    const el = document.getElementById('debug-overlay');
+                    if (el && el.classList.contains('hidden')) {
+                        window.debugOverlay && window.debugOverlay.show();
+                        localStorage.setItem('showDebugOverlay', 'true');
+                    } else {
+                        window.debugOverlay && window.debugOverlay.hide();
+                        localStorage.removeItem('showDebugOverlay');
+                    }
+                } catch (e) { console.warn('debug toggle error', e); }
+            });
+        } catch (e) {}
     } catch (e) {
         console.warn('debugOverlay init failed', e);
     }
 })();
+
+// Listen for touch-look events and apply to player camera when available
+window.addEventListener('game-touch-look', (ev) => {
+    try {
+        const d = ev.detail || { dx: 0, dy: 0 };
+        const sens = 0.004; // sensitivity, tweak as needed
+        if (window.game && window.game.player) {
+            try {
+                // call player method if exists
+                if (typeof window.game.player.rotateCamera === 'function') {
+                    window.game.player.rotateCamera(-d.dx * sens, -d.dy * sens);
+                } else {
+                    // fallback: store into player's internal touch yaw/pitch
+                    window.game.player._touchYaw = (window.game.player._touchYaw || 0) - d.dx * sens;
+                    window.game.player._touchPitch = (window.game.player._touchPitch || 0) - d.dy * sens;
+                    // clamp pitch
+                    const limit = Math.PI / 2 - 0.1;
+                    window.game.player._touchPitch = Math.max(-limit, Math.min(limit, window.game.player._touchPitch));
+                }
+            } catch (e) {}
+        }
+    } catch (e) {}
+});

@@ -38,13 +38,19 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 ### Interação
 - **E** - Interagir com baús e objetos
 - **ESC** - Menu de pausa
+- **`** (Crase) - Alternar Console de Debug
+
+### Controles Mobile
+- **Joystick Esquerdo** - Mover
+- **Área Direita da Tela** - Olhar/Mirar
+- **Botões** - Atirar, Pular, Correr
 
 ## 🎲 Recursos do Jogo
 
 ### Sistema de Combate
 - **4 Tipos de Armas:**
-  - **Soco:** Arma corpo a corpo, 10 de dano, 0.2s de cooldown
-  - **Pistola:** 20 de dano, 12/60 munição, 0.5s de cooldown
+  - **Fist (Soco):** Arma corpo a corpo, 10 de dano, 0.2s de cooldown
+  - **Pistol (Pistola):** 20 de dano, 12/60 munição, 0.5s de cooldown
   - **Rifle:** 25 de dano, 30/120 munição, 0.15s de cooldown
   - **Sniper:** 100 de dano, 5/20 munição, 2.0s de cooldown com zoom
 
@@ -273,6 +279,9 @@ Este projeto é open source e disponível para fins educacionais.
 - Detecção de hover melhorada: raycast testando meshes-filho dos inimigos e fallback por centro da tela.
 - Outline de hover implementado via grupo overlay não destrutivo para evitar alterações nas materiais originais.
 - SFX de tiro em pool para reprodução mais rápida.
+- **Suporte Mobile:** Controles de toque na tela (joystick + botões) para dispositivos móveis. Pode ser forçado nas configurações.
+- **Debug Aprimorado:** Novo console de debug arrastável e rolável na tela (alterne com a tecla ` crase ou botão DBG).
+- **Novas Configurações:** Controle de volume da música, alternância de controles de toque e opções de debug detalhadas.
 
 ## Executando & Depuração
 

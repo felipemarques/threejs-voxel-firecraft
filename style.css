@@ -229,7 +229,7 @@ html {
     pointer-events: none;
     font-size: 12px;
     color: #f1c40f;
-    text-shadow: 0 0 6px rgba(0,0,0,0.8);
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
     transform: translate(-50%, -50%);
 }
 
@@ -378,7 +378,8 @@ html {
     left: 8px;
     right: 8px;
     top: 8px;
-    pointer-events: none; /* children will enable pointer events where necessary */
+    pointer-events: none;
+    /* children will enable pointer events where necessary */
     z-index: 200;
 }
 
@@ -390,7 +391,7 @@ html {
     width: 140px;
     height: 140px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.15);
+    background: rgba(0, 0, 0, 0.15);
     pointer-events: auto;
     touch-action: none;
     display: flex;
@@ -402,9 +403,9 @@ html {
     width: 70px;
     height: 70px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    transform: translate(0,0);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transform: translate(0, 0);
 }
 
 .tc-buttons {
@@ -416,6 +417,20 @@ html {
     flex-direction: column;
     gap: 14px;
     pointer-events: auto;
+    z-index: 200;
+    /* ensure buttons sit above look area */
+}
+
+.tc-look-area {
+    /* invisible right-side area used to capture swipe/drag to rotate camera */
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 55%;
+    z-index: 190;
+    touch-action: none;
+    background: transparent;
 }
 
 .tc-btn {
@@ -429,64 +444,135 @@ html {
     align-items: center;
     justify-content: center;
     touch-action: manipulation;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.5);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
 }
 
 /* Smaller fire button when landscape narrow screens */
 @media (max-width: 520px) {
-    .tc-btn { width: 64px; height: 64px; border-radius: 14px; }
-    .tc-joystick { width: 110px; height: 110px; bottom: 90px; }
-    .tc-buttons { bottom: 90px; }
+    .tc-btn {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+    }
+
+    .tc-joystick {
+        width: 110px;
+        height: 110px;
+        bottom: 90px;
+    }
+
+    .tc-buttons {
+        bottom: 90px;
+    }
 }
 
 /* If the screen height is small, lift controls a bit more */
 @media (max-height: 640px) {
-    .tc-joystick { bottom: 140px; }
-    .tc-buttons { bottom: 140px; }
+    .tc-joystick {
+        bottom: 140px;
+    }
+
+    .tc-buttons {
+        bottom: 140px;
+    }
 }
 
 /* Debug overlay styles */
 .debug-overlay {
-    position: absolute;
-    right: 12px;
-    top: 12px;
+    position: fixed;
+    /* Use fixed to stay on screen even if page scrolls (though game is usually fixed) */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* Remove right/top positioning */
     width: min(520px, 95vw);
     max-height: 60vh;
-    background: rgba(10,10,10,0.85);
+    background: rgba(10, 10, 10, 0.85);
     color: #e6e6e6;
     font-family: monospace;
     font-size: 12px;
     border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
     z-index: 9999;
     display: flex;
     flex-direction: column;
     pointer-events: auto;
 }
-.debug-overlay.hidden { display: none; }
+
+.debug-overlay.hidden {
+    display: none;
+}
+
 .debug-overlay-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
+
 .debug-overlay-actions button {
     margin-left: 8px;
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: #fff;
     border: 0;
     padding: 6px 10px;
     border-radius: 6px;
     cursor: pointer;
 }
+
 .debug-overlay-list {
     padding: 8px 10px;
     overflow: auto;
+    /* allow vertical + horizontal scroll */
     flex: 1 1 auto;
+    touch-action: pan-y;
+    /* Restore scrolling capability inside this element */
 }
-.debug-line { padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.debug-log { color: #ddd; }
-.debug-info { color: #9ad1ff; }
-.debug-warn { color: #ffd479; }
-.debug-error { color: #ff9b9b; }
+
+.debug-line {
+    padding: 2px 0;
+    white-space: pre;
+    /* preserve spacing and keep single line for horizontal scroll */
+}
+
+/* Debug toggle button (floating) */
+#debug-toggle-btn {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(157, 77, 187, 0.95);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    z-index: 10000;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    border: 0;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+#debug-toggle-btn.hidden {
+    display: none !important;
+}
+
+.debug-log {
+    color: #ddd;
+}
+
+.debug-info {
+    color: #9ad1ff;
+}
+
+.debug-warn {
+    color: #ffd479;
+}
+
+.debug-error {
+    color: #ff9b9b;
+}

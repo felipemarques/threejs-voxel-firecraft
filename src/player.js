@@ -36,9 +36,9 @@ export class Player {
 
         // Weapons
         this.allWeapons = [
-            { name: 'Pistola', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5, range: 50 },
+            { name: 'Pistol', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5, range: 50 },
             // Faster punch, no charge time
-            { name: 'Soco', ammo: Infinity, maxAmmo: Infinity, magazineSize: Infinity, currentMag: Infinity, damage: 10, cooldown: 0.2, lastShot: 0, reloadTime: 0, range: 3 },
+            { name: 'Fist', ammo: Infinity, maxAmmo: Infinity, magazineSize: Infinity, currentMag: Infinity, damage: 10, cooldown: 0.2, lastShot: 0, reloadTime: 0, range: 3 },
             { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0, range: 120 },
             { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0, range: 400 }
         ];
@@ -65,6 +65,12 @@ export class Player {
         // Let's stick to PointerLockControls but modify how we use the object.
         
         this.controls = new PointerLockControls(camera, document.body);
+        // Allow movement on mobile when touch controls are present
+        this.allowTouchMovement = false;
+
+        // Touch-controlled camera rotation state (mobile)
+        this._touchYaw = 0;
+        this._touchPitch = 0;
         
         // Prevent automatic fullscreen on pointer lock
         document.addEventListener('fullscreenchange', () => {
@@ -144,7 +150,7 @@ export class Player {
         pHandle.position.set(0, -0.4, 0.15);
         pistol.add(pBarrel, pHandle);
         this.rightArmPivot.add(pistol);
-        this.weaponModels['Pistola'] = pistol;
+        this.weaponModels['Pistol'] = pistol;
 
         // Rifle
         const rifle = new THREE.Group();
@@ -353,7 +359,7 @@ export class Player {
 
     startBlocking() {
         const weapon = this.weapons[this.currentWeaponIndex];
-        if (weapon.name === 'Soco') {
+        if (weapon.name === 'Fist') {
             this.isBlocking = true;
         }
     }
@@ -395,7 +401,9 @@ export class Player {
     }
 
     shoot() {
-        if (!this.controls.isLocked || this.isDead || this.isReloading || this.isBlocking) return;
+        // Allow shooting when pointer lock is active OR when touch controls enabled
+        const canShoot = (this.controls && this.controls.isLocked === true) || this.allowTouchMovement === true;
+        if (!canShoot || this.isDead || this.isReloading || this.isBlocking) return;
 
         const weapon = this.weapons[this.currentWeaponIndex];
         const now = performance.now() / 1000;
@@ -409,7 +417,7 @@ export class Player {
         weapon.lastShot = now;
         if (weapon.ammo !== Infinity) weapon.currentMag--;
 
-        if (weapon.name === 'Soco') {
+        if (weapon.name === 'Fist') {
             this.punch();
             return;
         }
@@ -421,7 +429,7 @@ export class Player {
             if (this.sfxPool && this.sfxPool.length > 0) {
                 const poolItem = this.sfxPool[this.sfxIndex % this.sfxPool.length];
                 // Slightly vary playback rate per weapon for variety
-                if (weapon.name === 'Pistola') poolItem.playbackRate = 1.0;
+                if (weapon.name === 'Pistol') poolItem.playbackRate = 1.0;
                 else if (weapon.name === 'Rifle') poolItem.playbackRate = 1.15;
                 else if (weapon.name === 'Sniper') poolItem.playbackRate = 0.9;
                 else poolItem.playbackRate = 1.0;
@@ -555,7 +563,9 @@ export class Player {
     update(dt) {
         if (this.isDead) return;
 
-        if (this.controls.isLocked === true) {
+        // Allow updates when PointerLock is active OR when touch controls requested movement
+        const canMove = (this.controls && this.controls.isLocked === true) || this.allowTouchMovement === true;
+        if (canMove) {
             // Physics
             this.velocity.x -= this.velocity.x * 10.0 * dt;
             this.velocity.z -= this.velocity.z * 10.0 * dt;
@@ -700,6 +710,13 @@ export class Player {
             
             idealOffset.add(this.mesh.position);
             this.camera.position.copy(idealOffset);
+
+            // Apply touch-controlled rotation (if any) when not using PointerLock
+            if (this.allowTouchMovement && !(this.controls && this.controls.isLocked)) {
+                // touch yaw/pitch are stored in _touchYaw/_touchPitch; apply to camera quaternion
+                this.camera.rotation.y = this._touchYaw;
+                this.camera.rotation.x = this._touchPitch;
+            }
             
             this.updateAnimations(dt);
         }

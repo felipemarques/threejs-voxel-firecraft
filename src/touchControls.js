@@ -9,6 +9,7 @@ export class TouchControls {
         // Create joystick (left)
         this.joystick = document.createElement('div');
         this.joystick.className = 'tc-joystick';
+        this.joystick.style.zIndex = '210'; // Ensure above look area
 
         this.stick = document.createElement('div');
         this.stick.className = 'tc-stick';
@@ -17,6 +18,7 @@ export class TouchControls {
         // Buttons (right)
         this.buttons = document.createElement('div');
         this.buttons.className = 'tc-buttons';
+        this.buttons.style.zIndex = '210'; // Ensure above look area
 
         this.fireBtn = document.createElement('button');
         this.fireBtn.className = 'tc-btn';
@@ -47,6 +49,7 @@ export class TouchControls {
         // Bind events
         this._bindJoystick();
         this._bindButtons();
+        this._bindLookArea();
 
         // Default sensitivity
         this.deadZone = 10; // px
@@ -54,6 +57,16 @@ export class TouchControls {
 
         // Keep pointer actions from scrolling page
         document.body.style.touchAction = 'none';
+
+        // Notify player that touch movement is available
+        try { if (this.player) this.player.allowTouchMovement = true; } catch (e) {}
+    }
+
+    // Dispatch a global touch-look event for camera rotation (dx, dy in pixels)
+    _dispatchTouchLook(dx, dy) {
+        try {
+            window.dispatchEvent(new CustomEvent('game-touch-look', { detail: { dx, dy } }));
+        } catch (e) {}
     }
 
     destroy() {
@@ -62,6 +75,7 @@ export class TouchControls {
             this.container.removeChild(this.joystick);
             this.container.removeChild(this.buttons);
             document.body.style.touchAction = '';
+            if (this.player) this.player.allowTouchMovement = false;
         } catch (e) {}
     }
 
@@ -156,5 +170,49 @@ export class TouchControls {
             e.preventDefault();
             if (this.player) this.player.isSprinting = false;
         });
+    }
+
+    _bindLookArea() {
+        try {
+            // Create an invisible touch area on the right side for camera look control
+            this.lookArea = document.createElement('div');
+            this.lookArea.className = 'tc-look-area';
+            // inline styles to ensure it doesn't block buttons (lower z-index)
+            this.lookArea.style.position = 'absolute';
+            this.lookArea.style.top = '0';
+            this.lookArea.style.bottom = '0';
+            this.lookArea.style.right = '0';
+            this.lookArea.style.left = '0'; // Full width
+            this.lookArea.style.width = '100%';
+            this.lookArea.style.zIndex = '190'; // Below controls
+            this.lookArea.style.background = 'transparent';
+            this.lookArea.style.touchAction = 'none';
+            this.container.appendChild(this.lookArea);
+
+            let active = false;
+            let lastX = 0, lastY = 0;
+
+            this.lookArea.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                active = true;
+                lastX = e.clientX; lastY = e.clientY;
+                try { this.lookArea.setPointerCapture && this.lookArea.setPointerCapture(e.pointerId); } catch (err) {}
+            }, { passive: false });
+
+            this.lookArea.addEventListener('pointermove', (e) => {
+                if (!active) return;
+                e.preventDefault();
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                lastX = e.clientX; lastY = e.clientY;
+                // Dispatch normalized delta so game can apply sensitivity
+                this._dispatchTouchLook(dx, dy);
+            }, { passive: false });
+
+            const release = (e) => { active = false; try { this.lookArea.releasePointerCapture && this.lookArea.releasePointerCapture(e && e.pointerId); } catch (err) {} };
+            this.lookArea.addEventListener('pointerup', release);
+            this.lookArea.addEventListener('pointercancel', release);
+
+        } catch (e) {}
     }
 }

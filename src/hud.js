@@ -86,6 +86,24 @@ export class HUD {
                 }
             }
         });
+
+        // Bind touch/click handlers for hotbar slots so mobile can switch weapons
+        try {
+            this.slots.forEach((slot, idx) => {
+                const handle = (ev) => {
+                    try {
+                        ev.preventDefault && ev.preventDefault();
+                        // Slots are 1-based in markup; weapons array is 0-based
+                        if (this.player && typeof this.player.switchWeapon === 'function') {
+                            this.player.switchWeapon(idx);
+                        }
+                    } catch (e) {}
+                };
+                slot.addEventListener('pointerdown', handle);
+                // also support touchstart for older browsers
+                slot.addEventListener('touchstart', handle, { passive: false });
+            });
+        } catch (e) {}
     }
 
     update() {
