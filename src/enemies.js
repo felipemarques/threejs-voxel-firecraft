@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import deathSfx from './assets/mixkit-kill-blood-zombie.mp3';
+import deathSfx from './assets/mixkit-kill-blood-zombie.ogg';
 
 export class EnemyManager {
     constructor(scene, player, world, settings) {
@@ -26,7 +26,14 @@ export class EnemyManager {
                 fetch(deathSfx)
                     .then(r => r.arrayBuffer())
                     .then(b => this.audioCtx.decodeAudioData(b))
-                    .then(d => { this.deathBuffer = d; })
+                    .then(d => { 
+                        this.deathBuffer = d; 
+                        // Propagate buffer to already spawned enemies
+                        this.enemies.forEach(e => {
+                            e.audioCtx = this.audioCtx;
+                            e.deathBuffer = d;
+                        });
+                    })
                     .catch(e => {});
             }
         } catch(e) {}

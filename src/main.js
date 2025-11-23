@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import bgMusic from './assets/background-music-by-suno.mp3';
+import bgMusic from './assets/background-music-by-suno.ogg';
 import { World } from './world.js';
 import { Player } from './player.js';
 import { HUD } from './hud.js';

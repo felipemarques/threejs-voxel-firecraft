@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import defeatSfx from './assets/mixkit-player-losing-or-failing.mp3';
-import victorySfx from './assets/game-level-completed-envato-mixkit.co.mp3';
+import defeatSfx from './assets/mixkit-player-losing-or-failing.ogg';
+import victorySfx from './assets/game-level-completed-envato-mixkit.co.ogg';
 export class HUD {
     constructor(player, world, settings) {
         this.player = player;

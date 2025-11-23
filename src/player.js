@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
-import gunshotSfx from './assets/mixkit-game-gun-shot.mp3';
+import gunshotSfx from './assets/mixkit-game-gun-shot.ogg';
+import smackSfx from './assets/smack.ogg';
 
 export class Player {
     constructor(camera, scene, worldObjects, settings = {}) {
@@ -97,6 +98,7 @@ export class Player {
         this.sfxVolume = 0.7;
         this.gunshotBuffer = null;
         this.reloadBuffer = null;
+        this.smackBuffer = null;
         
         // Crouch state
         this.isCrouching = false;
@@ -117,7 +119,7 @@ export class Player {
                     .catch(e => console.warn('Error loading gunshot SFX:', e));
                 
                 // Load reload buffer
-                import('./assets/mixkit-shotgun-recharge.mp3')
+                import('./assets/mixkit-shotgun-recharge.ogg')
                     .then(module => fetch(module.default))
                     .then(response => response.arrayBuffer())
                     .then(arrayBuffer => this.audioCtx.decodeAudioData(arrayBuffer))
@@ -125,6 +127,15 @@ export class Player {
                         this.reloadBuffer = audioBuffer;
                     })
                     .catch(e => console.warn('Error loading reload SFX:', e));
+
+                // Load punch smack buffer
+                fetch(smackSfx)
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => this.audioCtx.decodeAudioData(arrayBuffer))
+                    .then(audioBuffer => {
+                        this.smackBuffer = audioBuffer;
+                    })
+                    .catch(e => console.warn('Error loading smack SFX:', e));
             }
         } catch (e) {
             console.warn('Web Audio API not supported:', e);
@@ -983,6 +994,7 @@ export class Player {
         if (this.enemyManager && this.enemyManager.enemies) {
             const playerDir = new THREE.Vector3();
             this.mesh.getWorldDirection(playerDir);
+            let hitSomething = false;
             
             this.enemyManager.enemies.forEach(enemy => {
                 const dist = this.mesh.position.distanceTo(enemy.position);
@@ -995,9 +1007,36 @@ export class Player {
                         // Knockback?
                         const knockback = playerDir.clone().multiplyScalar(2);
                         enemy.position.add(knockback);
+                        hitSomething = true;
                     }
                 }
             });
+
+            if (hitSomething) {
+                this.playSmack();
+            }
+        }
+    }
+
+    playSmack() {
+        try {
+            if (this.audioCtx) {
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume().then(() => this.playSmack());
+                    return;
+                }
+                if (this.smackBuffer) {
+                    const src = this.audioCtx.createBufferSource();
+                    src.buffer = this.smackBuffer;
+                    const gain = this.audioCtx.createGain();
+                    gain.gain.value = this.sfxVolume;
+                    src.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    src.start(0);
+                }
+            }
+        } catch (e) {
+            console.warn('playSmack error:', e);
         }
     }
 
@@ -1065,5 +1104,4 @@ export class Player {
         return false;
     }
 }
-
 
