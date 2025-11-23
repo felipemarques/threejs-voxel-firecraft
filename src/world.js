@@ -662,27 +662,16 @@ export class World {
         floor2.receiveShadow = true;
         g.add(floor2);
 
-        // Ramp (external gentle slope to floor 2)
+        // Ramp (wide, gentle) from front to second floor
         const rampHeight = floor2.position.y;
-        const rampLength = 7;
-        const rampGeo = new THREE.BoxGeometry(2.4, rampHeight, rampLength);
+        const rampLength = 10;
+        const rampGeo = new THREE.BoxGeometry(3, rampHeight, rampLength);
         const ramp = new THREE.Mesh(rampGeo, floorMat);
-        ramp.position.set(-halfW - 1.4, rampHeight / 2, 0);
-        ramp.rotation.z = 0;
+        ramp.position.set(0, rampHeight / 2, halfD + rampLength / 2);
         ramp.rotation.x = -Math.atan(rampHeight / rampLength);
         ramp.castShadow = true;
         ramp.receiveShadow = true;
         g.add(ramp);
-
-        // Railings for flavor
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50 });
-        const railGeo = new THREE.BoxGeometry(0.1, rampHeight, rampLength);
-        const railL = new THREE.Mesh(railGeo, railMat);
-        railL.position.set(ramp.position.x - 1.1, rampHeight / 2, 0);
-        railL.rotation.x = ramp.rotation.x;
-        const railR = railL.clone();
-        railR.position.x = ramp.position.x + 1.1;
-        g.add(railL, railR);
 
         // Roof trim
         const roof = new THREE.Mesh(new THREE.BoxGeometry(width + 0.4, 0.4, depth + 0.4), new THREE.MeshStandardMaterial({ color: 0x95a5a6 }));

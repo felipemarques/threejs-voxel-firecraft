@@ -39,6 +39,15 @@ export class ItemManager {
             const z = (Math.random() - 0.5) * this.spawnSpan;
             this.spawnJuiceBottle(x, z);
         }
+
+        // Spawn backpacks (cosmetic/one at a time equip)
+        const backpackColors = [0x2c3e50, 0xe67e22, 0x1abc9c, 0xe74c3c, 0x9b59b6];
+        for (let i = 0; i < 8; i++) {
+            const x = (Math.random() - 0.5) * this.spawnSpan;
+            const z = (Math.random() - 0.5) * this.spawnSpan;
+            const color = backpackColors[i % backpackColors.length];
+            this.spawnBackpack(x, z, color);
+        }
     }
 
     createChest(x, y, z) {
@@ -136,6 +145,38 @@ export class ItemManager {
         this.spawnChest(x, z);
     }
 
+    spawnBackpack(x, z, color) {
+        const pack = new THREE.Group();
+        let y = 0.5;
+        if (this.world && typeof this.world.getHeightAt === 'function') {
+            y = this.world.getHeightAt(x, z) + 0.5;
+        }
+        pack.position.set(x, y, z);
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.35), new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.8 }));
+        pack.add(body);
+        const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.25, 0.16), new THREE.MeshStandardMaterial({ color: 0x34495e, metalness: 0.1, roughness: 0.8 }));
+        pocket.position.set(0, -0.55, 0.18);
+        pack.add(pocket);
+        pack.castShadow = true;
+        pack.receiveShadow = true;
+
+        const glow = this.createGlowEffect();
+        glow.position.y = 1.0;
+        pack.add(glow);
+        pack.userData = {
+            type: 'backpack',
+            color,
+            gameId: this.generateID(),
+            gameName: 'Backpack',
+            isOpened: false,
+            glow
+        };
+
+        this.scene.add(pack);
+        this.items.push(pack);
+    }
+
     update() {
         // Check for nearby items
         let nearbyItem = null;
@@ -160,6 +201,9 @@ export class ItemManager {
                 this.interactionPrompt.innerText = `Press E to open (Contains: ${data.loot})`;
             } else if (data.type === 'stamina') {
                 this.interactionPrompt.innerText = `Press E to collect ${data.gameName} (+${data.amount} Stamina)`;
+            } else if (data.type === 'backpack') {
+                const color = data.color ? '#' + data.color.toString(16).padStart(6, '0') : '';
+                this.interactionPrompt.innerText = `Press E to equip Backpack ${color}`;
             } else {
                 this.interactionPrompt.innerText = `Press E to interact`;
             }
@@ -194,6 +238,14 @@ export class ItemManager {
                 // Mark removed so it's ignored
                 data.isOpened = true;
                 console.log(`Picked up stamina item: +${amount}`);
+            } else if (data.type === 'backpack') {
+                const color = data.color || 0x2c3e50;
+                if (this.player && typeof this.player.collectItem === 'function') {
+                    this.player.collectItem(`Backpack:${color.toString(16)}`);
+                }
+                this.scene.remove(this.currentItem);
+                data.isOpened = true;
+                console.log(`Equipped backpack ${color.toString(16)}`);
             }
         }
     }

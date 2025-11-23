@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import gunshotSfx from './assets/mixkit-game-gun-shot.ogg';
 import smackSfx from './assets/smack.ogg';
+import ughSfx from './assets/ugh.ogg';
 
 export class Player {
     constructor(camera, scene, worldObjects, settings = {}) {
@@ -9,6 +10,7 @@ export class Player {
         this.scene = scene;
         this.worldObjects = worldObjects;
         this.world = null;
+        this.backpack = null;
 
         // Stats
         this.health = 100;
@@ -100,6 +102,10 @@ export class Player {
         this.gunshotBuffer = null;
         this.reloadBuffer = null;
         this.smackBuffer = null;
+        this.ughBuffer = null;
+        this._hurtAccumulator = 0;
+        this._hurtQueue = 0;
+        this._hurtBeatTimer = null;
         
         // Crouch state
         this.isCrouching = false;
@@ -137,6 +143,15 @@ export class Player {
                         this.smackBuffer = audioBuffer;
                     })
                     .catch(e => console.warn('Error loading smack SFX:', e));
+
+                // Load hurt buffer
+                fetch(ughSfx)
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => this.audioCtx.decodeAudioData(arrayBuffer))
+                    .then(audioBuffer => {
+                        this.ughBuffer = audioBuffer;
+                    })
+                    .catch(e => console.warn('Error loading hurt SFX:', e));
             }
         } catch (e) {
             console.warn('Web Audio API not supported:', e);
@@ -292,6 +307,8 @@ export class Player {
         this.mesh.add(this.rightLegPivot);
         const rightLeg = new THREE.Mesh(legGeo, pantsMat);
         this.rightLegPivot.add(rightLeg);
+
+        // Backpack: none by default, equipped via loot
 
         this.isAiming = false;
         this.baseFov = 75;
@@ -533,6 +550,11 @@ export class Player {
     collectItem(itemName) {
         if (itemName === 'ShieldPotion') {
             this.shield = Math.min(100, this.shield + 50);
+            return;
+        }
+        if (itemName && itemName.startsWith('Backpack:')) {
+            const colorHex = itemName.split(':')[1] || '2c3e50';
+            this.equipBackpack(parseInt(colorHex, 16));
             return;
         }
 
@@ -1051,6 +1073,88 @@ export class Player {
         }
     }
 
+    equipBackpack(color = 0x2c3e50) {
+        if (this.backpack && this.backpack.parent) {
+            this.backpack.parent.remove(this.backpack);
+        }
+        const backpack = new THREE.Group();
+        backpack.position.set(0, 1.25, -0.32);
+
+        const packBody = new THREE.Mesh(
+            new THREE.BoxGeometry(0.7, 0.9, 0.35),
+            new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.8 })
+        );
+        packBody.position.set(0, 0, 0);
+        backpack.add(packBody);
+
+        const packPocket = new THREE.Mesh(
+            new THREE.BoxGeometry(0.6, 0.25, 0.16),
+            new THREE.MeshStandardMaterial({ color: 0x34495e, metalness: 0.1, roughness: 0.8 })
+        );
+        packPocket.position.set(0, -0.55, 0.22);
+        backpack.add(packPocket);
+
+        const strapMat = new THREE.MeshStandardMaterial({ color: 0x1f2c3a, metalness: 0.1, roughness: 0.9 });
+        const strapL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.82, 0.07), strapMat);
+        strapL.position.set(-0.28, -0.03, 0.2);
+        const strapR = strapL.clone();
+        strapR.position.x = 0.28;
+        backpack.add(strapL, strapR);
+
+        this.mesh.add(backpack);
+        this.backpack = backpack;
+    }
+
+    queueHurtBeat() {
+        // Convert multiple simultaneous hits into heart-beat cadence
+        this._hurtAccumulator += 1;
+        if (this._hurtAccumulator >= 2) {
+            const beats = Math.floor(this._hurtAccumulator / 2);
+            this._hurtQueue += beats;
+            this._hurtAccumulator -= beats * 2;
+        }
+        // Ensure at least one beat when attacked and no queue
+        if (this._hurtQueue === 0 && this._hurtAccumulator > 0) {
+            this._hurtQueue = 1;
+            this._hurtAccumulator = 0;
+        }
+        if (!this._hurtBeatTimer) {
+            this._playHurtBeatLoop();
+        }
+    }
+
+    _playHurtBeatLoop() {
+        if (this._hurtQueue <= 0) {
+            this._hurtBeatTimer = null;
+            return;
+        }
+        this.playHurt();
+        this._hurtQueue = Math.max(0, this._hurtQueue - 1);
+        this._hurtBeatTimer = setTimeout(() => this._playHurtBeatLoop(), 2000);
+    }
+
+    playHurt() {
+        try {
+            if (this.audioCtx) {
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume().then(() => this.playHurt());
+                    return;
+                }
+                if (this.ughBuffer) {
+                    const src = this.audioCtx.createBufferSource();
+                    src.buffer = this.ughBuffer;
+                    const gain = this.audioCtx.createGain();
+                    gain.gain.value = this.sfxVolume;
+                    src.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+                    src.start(0);
+                }
+            }
+        } catch (e) {
+            console.warn('playHurt error:', e);
+        }
+    }
+
 
     get position() {
         return this.mesh.position;
@@ -1070,6 +1174,11 @@ export class Player {
             }
         } else {
             this.health -= amount;
+        }
+
+        // Play hurt sound when taking damage (throttled)
+        if (amount > 0) {
+            this.queueHurtBeat();
         }
 
         if (this.health <= 0) {
