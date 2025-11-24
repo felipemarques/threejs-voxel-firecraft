@@ -52,7 +52,7 @@ export class HUD {
         this.hoveredEnemy = null;
         this.currentOutlinedEnemy = null;
         this.hoverInfo = document.getElementById('hover-info');
-        this.targetDistanceEl = document.getElementById('target-distance');
+        this.scopeOverlay = document.getElementById('scope-overlay');
         this.minimapContainer = document.getElementById('minimap');
         this.minimapCanvas = document.getElementById('minimap-canvas');
         this.minimapCtx = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
@@ -99,6 +99,7 @@ export class HUD {
                 const handle = (ev) => {
                     try {
                         ev.preventDefault && ev.preventDefault();
+                        ev.stopPropagation && ev.stopPropagation();
                         // Slots are 1-based in markup; weapons array is 0-based
                         if (this.player && typeof this.player.switchWeapon === 'function') {
                             this.player.switchWeapon(idx);
@@ -284,6 +285,17 @@ export class HUD {
             }
         }
 
+        // Sniper scope overlay
+        if (this.scopeOverlay) {
+            const weapon = this.player.weapons && this.player.weapons[this.player.currentWeaponIndex];
+            const sniperActive = this.player.isAiming && weapon && weapon.name === 'Sniper';
+            this.scopeOverlay.classList.toggle('hidden', !sniperActive);
+            const crosshair = document.getElementById('crosshair');
+            if (crosshair) {
+                crosshair.classList.toggle('hidden', sniperActive);
+            }
+        }
+
         // Crosshair color: red if within weapon range, yellow if visible but out of range, always update every frame
         const crosshair = document.getElementById('crosshair');
         if (crosshair) {
@@ -296,19 +308,6 @@ export class HUD {
                 } else {
                     crosshair.classList.add('target-yellow');
                 }
-            }
-        }
-
-        // Optionally show target distance in top-left (dashboard)
-        if (this.targetDistanceEl) {
-            const showTarget = !!this.settings.showTargetDistance;
-            if (showTarget && this.hoveredEnemy) {
-                const mesh = this.hoveredEnemy.mesh ? this.hoveredEnemy.mesh : (this.hoveredEnemy.isMesh ? this.hoveredEnemy : null) || this.hoveredEnemy;
-                const enemyPos = (this.hoveredEnemy.position) ? this.hoveredEnemy.position : (mesh ? mesh.position : null);
-                const dist = enemyPos ? this.player.position.distanceTo(enemyPos).toFixed(2) : '---';
-                this.targetDistanceEl.innerText = `${dist}`;
-            } else {
-                this.targetDistanceEl.innerText = '---';
             }
         }
 
@@ -353,12 +352,13 @@ export class HUD {
         }
 
         // Game Over
-        if (this.player.isDead) {
+        if (this.player.isDead && this.player.gameMode !== 'matrix') {
             this.showGameOver("YOU DIED");
         }
     }
 
     showGameOver(message) {
+        if (this.player && this.player.gameMode === 'matrix') return;
         // Prevent multiple calls
         if (this.gameOverShown) return;
         this.gameOverShown = true;
@@ -394,6 +394,7 @@ export class HUD {
     }
 
     showVictory() {
+        if (this.player && this.player.gameMode === 'matrix') return;
         // Reset flag to allow showGameOver to run
         this.gameOverShown = false;
         this.showGameOver("VICTORY ROYALE!");

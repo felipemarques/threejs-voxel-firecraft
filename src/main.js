@@ -92,12 +92,12 @@ class Game {
         const stormInput = document.getElementById('setting-storm');
         const debugCheckbox = document.getElementById('setting-debug');
         const showIdsCheckbox = document.getElementById('setting-show-ids');
-        const showTargetDistCheckbox = document.getElementById('setting-show-target-distance');
         const minimapCheckbox = document.getElementById('setting-minimap');
         const volumeSlider = document.getElementById('setting-music-volume');
         const volumeVal = document.getElementById('setting-music-volume-val');
         const cameraSelect = document.getElementById('setting-camera');
         const touchCheckbox = document.getElementById('setting-touch-controls');
+        const gameModeSelect = document.getElementById('setting-game-mode');
         
         const enemiesVal = document.getElementById('enemy-count-val');
         const stormVal = document.getElementById('storm-time-val');
@@ -113,7 +113,6 @@ class Game {
             stormVal.innerText = s.stormTime;
             if (s.debugMode) debugCheckbox.checked = true;
             if (s.showRenderedIds && showIdsCheckbox) showIdsCheckbox.checked = true;
-            if (s.showTargetDistance && showTargetDistCheckbox) showTargetDistCheckbox.checked = true;
             if (minimapCheckbox) minimapCheckbox.checked = s.showMinimap !== false;
             if (s.musicVolume !== undefined && volumeSlider && volumeVal) {
                 const v = parseInt(s.musicVolume, 10);
@@ -123,6 +122,7 @@ class Game {
             }
             if (s.cameraMode) cameraSelect.value = s.cameraMode;
             if (s.useTouchControls !== undefined && touchCheckbox) touchCheckbox.checked = !!s.useTouchControls;
+            if (s.gameMode && gameModeSelect) gameModeSelect.value = s.gameMode;
         }
 
         // Update labels
@@ -136,12 +136,12 @@ class Game {
                 stormTime: parseInt(stormInput.value),
                 debugMode: debugCheckbox.checked,
                 showRenderedIds: showIdsCheckbox ? showIdsCheckbox.checked : false,
-                showTargetDistance: showTargetDistCheckbox ? showTargetDistCheckbox.checked : false,
                 showMinimap: minimapCheckbox ? minimapCheckbox.checked : true,
                 musicVolume: volumeSlider ? parseInt(volumeSlider.value) : Math.round(this.bgMusicVolume * 100),
                 musicEnabled: document.getElementById('setting-music-enabled') ? document.getElementById('setting-music-enabled').checked : true,
                 cameraMode: cameraSelect.value,
-                useTouchControls: touchCheckbox ? touchCheckbox.checked : false
+                useTouchControls: touchCheckbox ? touchCheckbox.checked : false,
+                gameMode: gameModeSelect ? gameModeSelect.value : 'survival'
             };
             
             // Save Settings
@@ -221,13 +221,18 @@ class Game {
     startGame(settings) {
         // Components
         // 1. Player (initially without world objects)
-        this.player = new Player(this.camera, this.scene, null, settings);
+        const effectiveSettings = { ...settings };
+        if (effectiveSettings.gameMode === 'matrix') {
+            effectiveSettings.enemyCount = 0;
+            effectiveSettings.skipLoot = true;
+        }
+        this.player = new Player(this.camera, this.scene, null, effectiveSettings);
         
         // 2. ItemManager (needs player)
-        this.itemManager = new ItemManager(this.scene, this.player, settings);
+        this.itemManager = new ItemManager(this.scene, this.player, effectiveSettings);
         
         // 3. World (needs itemManager)
-        this.world = new World(this.scene, this.itemManager, settings);
+        this.world = new World(this.scene, this.itemManager, effectiveSettings);
         
         // 4. Update Player with World Objects
         this.player.worldObjects = this.world.objects;
@@ -236,24 +241,32 @@ class Game {
             this.itemManager.setWorld(this.world);
         }
 
+        // Matrix mode: spawn all items near player for quick testing
+        if (effectiveSettings.gameMode === 'matrix' && this.itemManager && typeof this.itemManager.spawnMatrixLoadout === 'function') {
+            this.itemManager.spawnMatrixLoadout(this.player.position.x, this.player.position.z);
+        }
+
         this.hud = new HUD(this.player, this.world, settings);
-        this.enemyManager = new EnemyManager(this.scene, this.player, this.world, settings);
+        this.enemyManager = new EnemyManager(this.scene, this.player, this.world, effectiveSettings);
         
         // Give player reference to enemies for shooting
         this.player.setEnemyManager(this.enemyManager);
 
         // Event Listeners
         window.addEventListener('resize', () => this.onWindowResize(), false);
-        // Only lock pointer when clicking the game canvas (prevents accidental locks from UI clicks)
+        // Allow re-locking pointer via canvas click if needed (desktop)
         const canvas = this.renderer.domElement;
-        canvas.addEventListener('click', () => {
-            // Do not attempt Pointer Lock on mobile devices; use touch-look instead
+        canvas.addEventListener('pointerdown', () => {
             if (IS_MOBILE) return;
             try {
                 if (this.player && this.player.controls && !this.player.controls.isLocked && !this.player.isDead) {
                     this.player.lockControls();
                 }
             } catch (e) { console.warn('Pointer lock request skipped or failed:', e); }
+            // Also nudge background audio in case autoplay was blocked
+            if (this.bgAudio && this.bgAudio.paused) {
+                this.playBackgroundMusic();
+            }
         });
 
         // Setup pause menu buttons
@@ -268,6 +281,13 @@ class Game {
                 this.touchControls = new TouchControls(this.player);
             }
         } catch (e) {}
+
+        // Lock pointer immediately after Play click (desktop)
+        if (!IS_MOBILE && this.player && this.player.controls && !this.player.controls.isLocked) {
+            try {
+                this.player.lockControls();
+            } catch (e) { console.warn('Pointer lock on start skipped/failed:', e); }
+        }
 
         this.animate();
     }
@@ -399,6 +419,9 @@ class Game {
                 const stormStatus = this.world.update(cappedDt, this.player.position);
                 if (stormStatus && stormStatus.inStorm) {
                     this.player.takeDamage(1 * cappedDt); // Reduced damage: 1 per second
+                } else if (this.player && typeof this.player.clearHurtQueue === 'function') {
+                    // Leaving storm: stop hurt loop unless enemies hit again
+                    this.player.clearHurtQueue();
                 }
             } catch (err) {
                 console.error('Error in world.update:', err);
@@ -433,7 +456,8 @@ class Game {
 
             // Check Victory
             try {
-                if (this.enemyManager.enemies.length === 0 && !this.player.isDead && !this.victoryShown) {
+                const isMatrix = this.player && this.player.gameMode === 'matrix';
+                if (!isMatrix && this.enemyManager.enemies.length === 0 && !this.player.isDead && !this.victoryShown) {
                     this.victoryShown = true; // Prevent multiple calls
                     this.hud.showVictory();
                     this.player.controls.unlock();

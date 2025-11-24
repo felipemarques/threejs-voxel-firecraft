@@ -10,7 +10,9 @@ export class Player {
         this.scene = scene;
         this.worldObjects = worldObjects;
         this.world = null;
+        this.gameMode = settings.gameMode || 'survival';
         this.backpack = null;
+        this.backpackColor = null;
 
         // Stats
         this.health = 100;
@@ -43,8 +45,11 @@ export class Player {
             { name: 'Pistol', ammo: 12, maxAmmo: 60, magazineSize: 12, currentMag: 12, damage: 20, cooldown: 0.5, lastShot: 0, reloadTime: 1.5, range: 50 },
             // Faster punch, no charge time
             { name: 'Fist', ammo: Infinity, maxAmmo: Infinity, magazineSize: Infinity, currentMag: Infinity, damage: 10, cooldown: 0.2, lastShot: 0, reloadTime: 0, range: 3 },
-            { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0, range: 120 },
-            { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0, range: 400 }
+            { name: 'Rifle', ammo: 30, maxAmmo: 120, magazineSize: 30, currentMag: 30, damage: 25, cooldown: 0.15, lastShot: 0, reloadTime: 2.0, range: 120, zoomFov: 30 },
+            { name: 'Sniper', ammo: 5, maxAmmo: 20, magazineSize: 5, currentMag: 5, damage: 100, cooldown: 2.0, lastShot: 0, reloadTime: 3.0, range: 400, zoomFov: 12 },
+            { name: 'SMG', ammo: 40, maxAmmo: 200, magazineSize: 40, currentMag: 40, damage: 15, cooldown: 0.08, lastShot: 0, reloadTime: 1.8, range: 80 },
+            { name: 'Shotgun', ammo: 6, maxAmmo: 24, magazineSize: 6, currentMag: 6, damage: 60, cooldown: 1.0, lastShot: 0, reloadTime: 2.5, range: 25 },
+            { name: 'DMR', ammo: 12, maxAmmo: 48, magazineSize: 12, currentMag: 12, damage: 45, cooldown: 0.35, lastShot: 0, reloadTime: 2.2, range: 200, zoomFov: 18 }
         ];
 
         
@@ -291,6 +296,24 @@ export class Player {
 
         // Hide all initially
         Object.values(this.weaponModels).forEach(m => m.visible = false);
+        // Additional weapon visuals (reuse base meshes)
+        const smg = rifle.clone();
+        smg.traverse(o => { if (o.material && o.material.color) o.material.color.setHex(0x556b8f); });
+        smg.scale.set(0.8, 0.8, 0.8);
+        this.rightArmPivot.add(smg);
+        this.weaponModels['SMG'] = smg;
+
+        const shotgun = rifle.clone();
+        shotgun.traverse(o => { if (o.material && o.material.color) o.material.color.setHex(0x8b5a2b); });
+        shotgun.scale.set(1.1, 1.0, 0.8);
+        this.rightArmPivot.add(shotgun);
+        this.weaponModels['Shotgun'] = shotgun;
+
+        const dmr = rifle.clone();
+        dmr.traverse(o => { if (o.material && o.material.color) o.material.color.setHex(0x2e8b57); });
+        dmr.scale.set(0.95, 0.95, 1.0);
+        this.rightArmPivot.add(dmr);
+        this.weaponModels['DMR'] = dmr;
 
         // Legs - Use Pivots
         const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
@@ -379,6 +402,14 @@ export class Player {
                 case 'Digit2': this.switchWeapon(1); break;
                 case 'Digit3': this.switchWeapon(2); break;
                 case 'Digit4': this.switchWeapon(3); break;
+                case 'Digit5': this.switchWeapon(4); break;
+                case 'Digit6': this.switchWeapon(5); break;
+                case 'Numpad1': this.switchWeapon(0); break;
+                case 'Numpad2': this.switchWeapon(1); break;
+                case 'Numpad3': this.switchWeapon(2); break;
+                case 'Numpad4': this.switchWeapon(3); break;
+                case 'Numpad5': this.switchWeapon(4); break;
+                case 'Numpad6': this.switchWeapon(5); break;
                 case 'KeyR': this.reload(); break;
                 case 'KeyC': 
                     // Toggle crouch
@@ -554,8 +585,8 @@ export class Player {
         }
         if (itemName && itemName.startsWith('Backpack:')) {
             const colorHex = itemName.split(':')[1] || '2c3e50';
-            this.equipBackpack(parseInt(colorHex, 16));
-            return;
+            const dropColor = this.equipBackpack(parseInt(colorHex, 16));
+            return dropColor;
         }
 
         // Check if we already have it
@@ -700,6 +731,11 @@ export class Player {
         
         // Create bullet tracer visualization
         this.createBulletTracer(bulletStart, bulletEnd, hitSomething);
+
+        // Impact smoke for sniper hits
+        if (hitSomething && weapon.name === 'Sniper') {
+            this.createImpactSmoke(bulletEnd);
+        }
     }
 
     createMuzzleFlash() {
@@ -749,6 +785,47 @@ export class Player {
                 material.dispose();
             }
         }, 30);
+    }
+
+    createImpactSmoke(position) {
+        const group = new THREE.Group();
+        group.position.copy(position);
+
+        const puffCount = 8;
+        for (let i = 0; i < puffCount; i++) {
+            const scale = 0.15 + Math.random() * 0.2;
+            const geo = new THREE.SphereGeometry(scale, 6, 6);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.5 });
+            const puff = new THREE.Mesh(geo, mat);
+            puff.position.set(
+                (Math.random() - 0.5) * 0.4,
+                (Math.random() - 0.5) * 0.2,
+                (Math.random() - 0.5) * 0.4
+            );
+            group.add(puff);
+        }
+
+        this.scene.add(group);
+
+        const lifetime = 600;
+        const start = performance.now();
+        const fade = () => {
+            const t = performance.now() - start;
+            const alpha = Math.max(0, 1 - t / lifetime);
+            group.children.forEach(c => {
+                if (c.material) c.material.opacity = alpha * 0.5;
+            });
+            if (t < lifetime) {
+                requestAnimationFrame(fade);
+            } else {
+                group.traverse(obj => {
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) obj.material.dispose();
+                });
+                this.scene.remove(group);
+            }
+        };
+        fade();
     }
 
     update(dt) {
@@ -881,8 +958,9 @@ export class Player {
 
             // Zoom Logic
             let targetFov = this.baseFov;
-            if (this.isAiming && this.weapons[this.currentWeaponIndex].name === 'Sniper') {
-                targetFov = this.aimFov;
+            const weapon = this.weapons[this.currentWeaponIndex];
+            if (this.isAiming && weapon && weapon.zoomFov) {
+                targetFov = weapon.zoomFov;
             }
 
             // Lerp FOV
@@ -1074,6 +1152,7 @@ export class Player {
     }
 
     equipBackpack(color = 0x2c3e50) {
+        const prevColor = this.backpackColor;
         if (this.backpack && this.backpack.parent) {
             this.backpack.parent.remove(this.backpack);
         }
@@ -1103,6 +1182,8 @@ export class Player {
 
         this.mesh.add(backpack);
         this.backpack = backpack;
+        this.backpackColor = color;
+        return prevColor;
     }
 
     queueHurtBeat() {
@@ -1133,6 +1214,15 @@ export class Player {
         this._hurtBeatTimer = setTimeout(() => this._playHurtBeatLoop(), 2000);
     }
 
+    clearHurtQueue() {
+        this._hurtAccumulator = 0;
+        this._hurtQueue = 0;
+        if (this._hurtBeatTimer) {
+            clearTimeout(this._hurtBeatTimer);
+            this._hurtBeatTimer = null;
+        }
+    }
+
     playHurt() {
         try {
             if (this.audioCtx) {
@@ -1161,6 +1251,10 @@ export class Player {
     }
 
     takeDamage(amount) {
+        if (this.gameMode === 'matrix') {
+            // No damage in Matrix mode
+            return;
+        }
         if (this.isBlocking) {
             amount *= 0.2; // 80% damage reduction
             console.log("Blocked! Reduced damage to " + amount);
@@ -1190,6 +1284,7 @@ export class Player {
     }
 
     die() {
+        if (this.gameMode === 'matrix') return;
         this.isDead = true;
         this.controls.unlock();
         this.mesh.rotation.x = -Math.PI / 2; // Fall over

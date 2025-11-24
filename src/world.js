@@ -7,8 +7,13 @@ export class World {
         this.scene = scene;
         this.itemManager = itemManager;
         this.objects = []; // Objects for collision detection
-        // Map dimensions (doubled to 400 x 400 by default)
-        this.mapSize = (settings && settings.mapSize) ? settings.mapSize : DEFAULT_MAP_SIZE;
+        this.gameMode = settings && settings.gameMode ? settings.gameMode : 'survival';
+        // Map dimensions (smaller for arena)
+        if (this.gameMode === 'arena') {
+            this.mapSize = 150;
+        } else {
+            this.mapSize = (settings && settings.mapSize) ? settings.mapSize : DEFAULT_MAP_SIZE;
+        }
         this.halfMapSize = this.mapSize / 2;
         this.stormRadius = this.halfMapSize;
         this.initialStormRadius = this.stormRadius;
@@ -23,12 +28,25 @@ export class World {
     }
 
     init() {
-        this.createEnvironment();
-        this.createStormVisuals();
+        if (this.gameMode === 'arena') {
+            this.createArenaEnvironment();
+        } else if (this.gameMode === 'matrix') {
+            this.createMatrixEnvironment();
+        } else {
+            this.createEnvironment();
+        }
+        if (this.gameMode !== 'matrix') {
+            this.createStormVisuals();
+        }
     }
 
     createEnvironment() {
         const randCoord = (spread = 1) => (Math.random() - 0.5) * (this.mapSize * spread);
+        const safeCoord = (spread = 1) => {
+            const limit = this.halfMapSize - 5;
+            const v = randCoord(spread);
+            return Math.max(-limit, Math.min(limit, v));
+        };
         const groundY = (x, z) => (this.getHeightAt ? this.getHeightAt(x, z) : 0);
         
         // Ground
@@ -71,8 +89,8 @@ export class World {
 
         // Trees
         for (let i = 0; i < 100; i++) {
-            const x = randCoord(0.9);
-            const z = randCoord(0.9);
+            const x = safeCoord(0.9);
+            const z = safeCoord(0.9);
             const y = groundY(x, z);
             
             const type = Math.random() > 0.5 ? 'Oak' : 'Pine';
@@ -93,8 +111,8 @@ export class World {
             (x, z, y) => this.createBasaltCluster(x, z, y)
         ];
         for (let i = 0; i < 90; i++) {
-            const x = randCoord(0.9);
-            const z = randCoord(0.9);
+            const x = safeCoord(0.9);
+            const z = safeCoord(0.9);
             const y = groundY(x, z);
             const maker = rockMakers[i % rockMakers.length];
             const rock = maker(x, z, y);
@@ -104,8 +122,8 @@ export class World {
         }
         // Small bushes
         for (let i = 0; i < 80; i++) {
-            const x = randCoord(0.85);
-            const z = randCoord(0.85);
+            const x = safeCoord(0.85);
+            const z = safeCoord(0.85);
             const y = groundY(x, z);
             const bush = this.createBush(x, z);
             bush.position.y = y;
@@ -116,8 +134,8 @@ export class World {
 
         // Scattered grass clumps across the map for texture
         for (let i = 0; i < 400; i++) {
-            const x = randCoord(0.95);
-            const z = randCoord(0.95);
+            const x = safeCoord(0.95);
+            const z = safeCoord(0.95);
             const y = groundY(x, z);
             const g = this.createGrassClump(x, z);
             g.position.y = y;
@@ -126,8 +144,8 @@ export class World {
         
         // Buildings
         for (let i = 0; i < 16; i++) {
-            const x = randCoord(0.75);
-            const z = randCoord(0.75);
+            const x = safeCoord(0.75);
+            const z = safeCoord(0.75);
             const y = groundY(x, z);
             const house = this.createHouse(x, z);
             house.position.y = y;
@@ -141,8 +159,8 @@ export class World {
         
         // Vehicles (Cars and Trucks)
         for (let i = 0; i < 24; i++) {
-            const x = randCoord(0.8);
-            const z = randCoord(0.8);
+            const x = safeCoord(0.8);
+            const z = safeCoord(0.8);
             const y = groundY(x, z);
             const type = Math.random() > 0.6 ? 'truck' : 'car';
             const vehicle = this.createVehicle(x, z, type);
@@ -154,8 +172,8 @@ export class World {
 
         // Elevated natural plateaus with gentle ramps
         for (let i = 0; i < 6; i++) {
-            const x = randCoord(0.6);
-            const z = randCoord(0.6);
+            const x = safeCoord(0.6);
+            const z = safeCoord(0.6);
             const height = 6 + Math.random() * 6;
             const radius = 8 + Math.random() * 6;
             const y = groundY(x, z);
@@ -167,8 +185,8 @@ export class World {
 
         // Small 2‑story buildings with ramps
         for (let i = 0; i < 8; i++) {
-            const x = randCoord(0.7);
-            const z = randCoord(0.7);
+            const x = safeCoord(0.7);
+            const z = safeCoord(0.7);
             const y = groundY(x, z);
             const b = this.createSmallBuilding(x, z);
             b.position.y = y;
@@ -176,6 +194,127 @@ export class World {
             this.scene.add(b);
             this.objects.push(b);
         }
+    }
+
+    createArenaEnvironment() {
+        const randCoord = (spread = 1) => (Math.random() - 0.5) * (this.mapSize * spread);
+        const safeCoord = (spread = 1) => {
+            const limit = this.halfMapSize - 5;
+            const v = randCoord(spread);
+            return Math.max(-limit, Math.min(limit, v));
+        };
+
+        // Ground - simple flat shading
+        const groundGeo = new THREE.PlaneGeometry(this.mapSize, this.mapSize, 1, 1);
+        const groundMat = new THREE.MeshPhongMaterial({ color: 0x3b4b5b, flatShading: true });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        ground.userData = { gameId: this.generateID(), gameName: 'Ground' };
+        this.scene.add(ground);
+        this.objects.push(ground);
+
+        // Low-poly obstacles (boxes/pillars)
+        for (let i = 0; i < 30; i++) {
+            const x = safeCoord(0.8);
+            const z = safeCoord(0.8);
+            const h = 1 + Math.random() * 3;
+            const w = 1 + Math.random() * 2;
+            const d = 1 + Math.random() * 2;
+            const boxGeo = new THREE.BoxGeometry(w, h, d);
+            const boxMat = new THREE.MeshPhongMaterial({ color: 0x556677, flatShading: true });
+            const box = new THREE.Mesh(boxGeo, boxMat);
+            box.position.set(x, h / 2, z);
+            box.castShadow = true;
+            box.receiveShadow = true;
+            box.userData = { gameId: this.generateID(), gameName: 'Crate', type: 'house' };
+            this.scene.add(box);
+            this.objects.push(box);
+        }
+
+        // Ramps for verticality
+        for (let i = 0; i < 6; i++) {
+            const x = safeCoord(0.7);
+            const z = safeCoord(0.7);
+            const length = 6 + Math.random() * 3;
+            const height = 3 + Math.random() * 2;
+            const width = 3;
+            const rampGeo = new THREE.BoxGeometry(width, height, length);
+            const rampMat = new THREE.MeshPhongMaterial({ color: 0x4b5563, flatShading: true });
+            const ramp = new THREE.Mesh(rampGeo, rampMat);
+            ramp.position.set(x, height / 2, z);
+            ramp.rotation.x = -Math.atan(height / length);
+            ramp.castShadow = true;
+            ramp.receiveShadow = true;
+            ramp.userData = { gameId: this.generateID(), gameName: 'Ramp', type: 'house' };
+            this.scene.add(ramp);
+            this.objects.push(ramp);
+        }
+
+        // Minimal bunkers
+        for (let i = 0; i < 6; i++) {
+            const x = safeCoord(0.6);
+            const z = safeCoord(0.6);
+            const bunker = this.createArenaBunker(x, z);
+            bunker.userData = { gameId: this.generateID(), gameName: 'Bunker', type: 'house' };
+            this.scene.add(bunker);
+            this.objects.push(bunker);
+        }
+
+        // Few rocks for cover
+        for (let i = 0; i < 20; i++) {
+            const x = safeCoord(0.8);
+            const z = safeCoord(0.8);
+            const rock = this.createFlatBoulder(x, z, 0);
+            rock.userData = { gameId: this.generateID(), gameName: 'Rock', type: 'rock' };
+            this.scene.add(rock);
+            this.objects.push(rock);
+        }
+
+        // Loot in arena
+        this.itemManager.spawnLootInHouse(0, 0, 0); // ensure some loot
+    }
+
+    createMatrixEnvironment() {
+        // Visible ground similar to other modes, but without extra props
+        const groundGeo = new THREE.PlaneGeometry(this.mapSize, this.mapSize, 128, 128);
+        const count = groundGeo.attributes.position.count;
+        groundGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+        const colors = groundGeo.attributes.color;
+        const color = new THREE.Color();
+        for (let i = 0; i < count; i++) {
+            const r = Math.random();
+            if (r > 0.8) color.setHex(0x27ae60); // Darker grass
+            else if (r > 0.4) color.setHex(0x2ecc71); // Normal grass
+            else color.setHex(0x58d68d); // Lighter grass
+            colors.setXYZ(i, color.r, color.g, color.b);
+        }
+        const groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        ground.userData = { gameId: this.generateID(), gameName: 'Ground' };
+        this.scene.add(ground);
+        this.objects.push(ground);
+
+        // Simple white wall for target testing (thick box to block collision)
+        const wallGeo = new THREE.BoxGeometry(20, 6, 0.5);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xf3f3f3, roughness: 0.9 });
+        const wall = new THREE.Mesh(wallGeo, wallMat);
+        wall.position.set(0, 3, -15);
+        wall.castShadow = true;
+        wall.receiveShadow = true;
+        wall.userData = { gameId: this.generateID(), gameName: 'Wall', type: 'house' };
+        this.scene.add(wall);
+        this.objects.push(wall);
+
+        // Trees flanking the wall
+        const leftTree = this.createTree(-12, -15, 'Oak');
+        const rightTree = this.createTree(12, -15, 'Pine');
+        this.scene.add(leftTree);
+        this.scene.add(rightTree);
+        this.objects.push(leftTree);
+        this.objects.push(rightTree);
     }
 
     generateID() {
@@ -682,8 +821,46 @@ export class World {
         return g;
     }
 
+    createArenaBunker(x, z) {
+        const g = new THREE.Group();
+        g.position.set(x, 0, z);
+        g.rotation.y = Math.random() * Math.PI * 2;
+
+        const wallMat = new THREE.MeshPhongMaterial({ color: 0x4b5563, flatShading: true });
+        const floorMat = new THREE.MeshPhongMaterial({ color: 0x5f6c7b, flatShading: true });
+
+        const base = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 6), wallMat);
+        base.position.y = 1.25;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        g.add(base);
+
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.3, 6.2), floorMat);
+        roof.position.y = 2.65;
+        roof.castShadow = true;
+        g.add(roof);
+
+        // Door opening (placeholder visual)
+        const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 0.2), new THREE.MeshPhongMaterial({ color: 0x8d9aa8, flatShading: true, transparent: true, opacity: 0.2 }));
+        door.position.set(0, 0.9, 3.1);
+        g.add(door);
+
+        // Simple ramp to roof
+        const rampGeo = new THREE.BoxGeometry(2, 1.2, 4);
+        const ramp = new THREE.Mesh(rampGeo, floorMat);
+        ramp.position.set(-2.5, 0.6, -1);
+        ramp.rotation.x = -Math.atan(1.2 / 4);
+        ramp.castShadow = true;
+        ramp.receiveShadow = true;
+        ramp.userData = { type: 'house' };
+        g.add(ramp);
+
+        return g;
+    }
+
 
     createStormVisuals() {
+        if (this.gameMode === 'matrix') return;
         const geometry = new THREE.CylinderGeometry(this.stormRadius, this.stormRadius, 50, 32, 1, true);
         const material = new THREE.MeshBasicMaterial({ 
             color: 0x8e44ad, 
@@ -696,7 +873,47 @@ export class World {
         this.scene.add(this.stormMesh);
     }
 
+    createTarget(x, z) {
+        const g = new THREE.Group();
+        g.position.set(x, 0, z);
+
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2, 6), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+        pole.position.y = 1;
+        g.add(pole);
+
+        const targetGeo = new THREE.CircleGeometry(0.8, 24);
+        const targetMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const target = new THREE.Mesh(targetGeo, targetMat);
+        target.position.set(0, 2, 0);
+        target.rotation.y = Math.PI;
+        g.add(target);
+
+        const ringMatRed = new THREE.MeshStandardMaterial({ color: 0xff4444 });
+        const ringMatGold = new THREE.MeshStandardMaterial({ color: 0xf1c40f });
+        const ringMatBlue = new THREE.MeshStandardMaterial({ color: 0x3498db });
+        const makeRing = (r, mat) => {
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.02, 6, 24), mat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 2;
+            return ring;
+        };
+        g.add(makeRing(0.75, ringMatBlue));
+        g.add(makeRing(0.55, ringMatRed));
+        g.add(makeRing(0.35, ringMatGold));
+
+        const center = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+        center.position.set(0, 2.01, 0);
+        center.rotation.y = Math.PI;
+        g.add(center);
+
+        g.userData = { gameId: this.generateID(), gameName: 'Target', type: 'house' };
+        return g;
+    }
+
     update(dt, playerPos) {
+        if (this.gameMode === 'matrix') {
+            return { inStorm: false };
+        }
         // Shrink storm
         if (this.stormRadius > 10) {
             this.stormRadius -= this.stormShrinkRate * dt;

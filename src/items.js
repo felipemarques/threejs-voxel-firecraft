@@ -11,6 +11,7 @@ export class ItemManager {
         this.spawnSpan = this.mapSize * 0.75; // Keep loot inside playable area with margin
         this.glowRadius = 7; // Distance to show glow particles
         this.world = null;
+        this.settings = settings || {};
         
         this.initLoot();
         
@@ -25,28 +26,103 @@ export class ItemManager {
         this.realignItemsToGround();
     }
 
+    spawnParachuteLootNearPlayer(count = 5, radius = 10) {
+        if (!this.player) return;
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * radius;
+            let x = this.player.position.x + Math.cos(angle) * dist;
+            let z = this.player.position.z + Math.sin(angle) * dist;
+            ({ x, z } = this.getClampedCoord(x, z));
+            const y = (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) : 0;
+            this.spawnParachuteChest(x, y + 30, z);
+        }
+    }
+
+    spawnParachuteChest(x, y, z) {
+        const chest = new THREE.Group();
+        const box = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.6), new THREE.MeshStandardMaterial({ color: 0xf1c40f, roughness: 0.3, metalness: 0.5 }));
+        box.position.y = 0.4;
+        chest.add(box);
+        const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.2, 0.6), new THREE.MeshStandardMaterial({ color: 0xf5d76e, roughness: 0.3, metalness: 0.5 }));
+        lid.position.y = 0.9;
+        chest.add(lid);
+
+        const parachute = new THREE.Group();
+        const canopy = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.8, metalness: 0.1 }));
+        canopy.rotation.x = Math.PI;
+        canopy.position.y = 2.5;
+        parachute.add(canopy);
+        const stringsMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
+        for (let i = 0; i < 6; i++) {
+            const theta = (Math.PI * 2 * i) / 6;
+            const sx = Math.cos(theta) * 0.9;
+            const sz = Math.sin(theta) * 0.9;
+            const string = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2, 3), stringsMat);
+            string.position.set(sx, 1.5, sz);
+            parachute.add(string);
+        }
+
+        const drop = new THREE.Group();
+        drop.position.set(x, y, z);
+        drop.add(parachute);
+        chest.position.y = 0;
+        drop.add(chest);
+
+        drop.userData = {
+            type: 'parachute-drop',
+            targetY: (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) + 0.5 : 0.5,
+            landed: false,
+            yaw: Math.random() * Math.PI * 2,
+            phase: Math.random() * Math.PI * 2
+        };
+
+        this.scene.add(drop);
+        this.items.push(drop);
+    }
+
+    getClampedCoord(x, z) {
+        if (this.world && typeof this.world.halfMapSize === 'number') {
+            const limit = this.world.halfMapSize - 5;
+            return {
+                x: Math.max(-limit, Math.min(limit, x)),
+                z: Math.max(-limit, Math.min(limit, z))
+            };
+        }
+        return { x, z };
+    }
+
     initLoot() {
+        if (this.settings.skipLoot) return;
         // Create some random chests/items
         for (let i = 0; i < 24; i++) {
-            const x = (Math.random() - 0.5) * this.spawnSpan;
-            const z = (Math.random() - 0.5) * this.spawnSpan;
+            let x = (Math.random() - 0.5) * this.spawnSpan;
+            let z = (Math.random() - 0.5) * this.spawnSpan;
+            ({ x, z } = this.getClampedCoord(x, z));
             this.createChest(x, 0.5, z);
         }
 
         // Spawn some stamina items (juice bottles)
         for (let i = 0; i < 36; i++) {
-            const x = (Math.random() - 0.5) * this.spawnSpan;
-            const z = (Math.random() - 0.5) * this.spawnSpan;
+            let x = (Math.random() - 0.5) * this.spawnSpan;
+            let z = (Math.random() - 0.5) * this.spawnSpan;
+            ({ x, z } = this.getClampedCoord(x, z));
             this.spawnJuiceBottle(x, z);
         }
 
         // Spawn backpacks (cosmetic/one at a time equip)
         const backpackColors = [0x2c3e50, 0xe67e22, 0x1abc9c, 0xe74c3c, 0x9b59b6];
         for (let i = 0; i < 8; i++) {
-            const x = (Math.random() - 0.5) * this.spawnSpan;
-            const z = (Math.random() - 0.5) * this.spawnSpan;
+            let x = (Math.random() - 0.5) * this.spawnSpan;
+            let z = (Math.random() - 0.5) * this.spawnSpan;
+            ({ x, z } = this.getClampedCoord(x, z));
             const color = backpackColors[i % backpackColors.length];
             this.spawnBackpack(x, z, color);
+        }
+
+        // Matrix mode: parachute drops near player for testing
+        if (this.settings.gameMode === 'matrix') {
+            this.spawnParachuteLootNearPlayer(6, 12);
         }
     }
 
@@ -57,6 +133,7 @@ export class ItemManager {
 
     spawnChest(x, z) {
         const chest = new THREE.Group();
+        ({ x, z } = this.getClampedCoord(x, z));
         let y = 0.5;
         if (this.world && typeof this.world.getHeightAt === 'function') {
             y = this.world.getHeightAt(x, z) + 0.5;
@@ -82,7 +159,7 @@ export class ItemManager {
         chest.receiveShadow = true;
         
         // Random loot
-        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion'];
+        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion', 'SMG', 'Shotgun', 'DMR'];
         const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
 
         chest.userData = { 
@@ -102,8 +179,52 @@ export class ItemManager {
         this.items.push(chest);
     }
 
+    spawnChestWithLoot(x, z, loot) {
+        const chest = new THREE.Group();
+        ({ x, z } = this.getClampedCoord(x, z));
+        let y = 0.5;
+        if (this.world && typeof this.world.getHeightAt === 'function') {
+            y = this.world.getHeightAt(x, z) + 0.5;
+        }
+        chest.position.set(x, y, z);
+        
+        const boxGeo = new THREE.BoxGeometry(1, 0.8, 0.6);
+        const boxMat = new THREE.MeshStandardMaterial({ color: 0xf1c40f, roughness: 0.3, metalness: 0.5 });
+        const box = new THREE.Mesh(boxGeo, boxMat);
+        chest.add(box);
+        
+        const lidGeo = new THREE.BoxGeometry(1, 0.2, 0.6);
+        const lid = new THREE.Mesh(lidGeo, boxMat);
+        lid.position.y = 0.5;
+        chest.add(lid);
+        
+        const lock = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.1), new THREE.MeshStandardMaterial({ color: 0x95a5a6 }));
+        lock.position.set(0, 0.3, 0.3);
+        chest.add(lock);
+
+        chest.castShadow = true;
+        chest.receiveShadow = true;
+
+        chest.userData = { 
+            type: 'chest', 
+            isOpened: false,
+            gameId: this.generateID(),
+            gameName: 'Chest',
+            loot
+        };
+        
+        const glow = this.createGlowEffect();
+        glow.position.y = 1.0;
+        chest.add(glow);
+        chest.userData.glow = glow;
+        
+        this.scene.add(chest);
+        this.items.push(chest);
+    }
+
     spawnJuiceBottle(x, z) {
         const bottle = new THREE.Group();
+        ({ x, z } = this.getClampedCoord(x, z));
         let y = 0.5;
         if (this.world && typeof this.world.getHeightAt === 'function') {
             y = this.world.getHeightAt(x, z) + 0.5;
@@ -147,6 +268,7 @@ export class ItemManager {
 
     spawnBackpack(x, z, color) {
         const pack = new THREE.Group();
+        ({ x, z } = this.getClampedCoord(x, z));
         let y = 0.5;
         if (this.world && typeof this.world.getHeightAt === 'function') {
             y = this.world.getHeightAt(x, z) + 0.5;
@@ -177,6 +299,30 @@ export class ItemManager {
         this.items.push(pack);
     }
 
+    spawnMatrixLoadout(cx = 0, cz = 0) {
+        // Layout items around player for quick testing
+        const ring = [
+            { dx: 2, dz: 0, loot: 'Pistol' },
+            { dx: -2, dz: 0, loot: 'Rifle' },
+            { dx: 0, dz: 2, loot: 'Sniper' },
+            { dx: 0, dz: -2, loot: 'ShieldPotion' },
+            { dx: 2, dz: 2, loot: 'SMG' },
+            { dx: -2, dz: -2, loot: 'Shotgun' },
+            { dx: -2, dz: 2, loot: 'DMR' },
+        ];
+        ring.forEach(r => {
+            this.spawnChestWithLoot(cx + r.dx, cz + r.dz, r.loot);
+        });
+        // Stamina bottles
+        this.spawnJuiceBottle(cx + 3, cz + 3);
+        this.spawnJuiceBottle(cx - 3, cz - 3);
+        // Backpacks (different colors)
+        const backpackColors = [0x2c3e50, 0xe67e22, 0x1abc9c];
+        backpackColors.forEach((c, i) => {
+            this.spawnBackpack(cx + (i - 1) * 2, cz + 4, c);
+        });
+    }
+
     update() {
         // Check for nearby items
         let nearbyItem = null;
@@ -191,6 +337,21 @@ export class ItemManager {
             if (dist < 3) {
                 nearbyItem = item;
                 break;
+            }
+
+            // Animate parachute drops
+            if (item.userData && item.userData.type === 'parachute-drop' && !item.userData.landed) {
+                const targetY = item.userData.targetY || 0.5;
+                item.userData.phase += 0.05;
+                item.position.y = Math.max(targetY, item.position.y - 0.2);
+                const sway = Math.sin(item.userData.phase) * 0.2;
+                item.rotation.y += 0.01;
+                item.position.x += sway * 0.01;
+                item.position.z += Math.cos(item.userData.phase) * 0.01;
+                if (item.position.y <= targetY + 0.01) {
+                    item.position.y = targetY;
+                    item.userData.landed = true;
+                }
             }
         }
 
@@ -241,7 +402,11 @@ export class ItemManager {
             } else if (data.type === 'backpack') {
                 const color = data.color || 0x2c3e50;
                 if (this.player && typeof this.player.collectItem === 'function') {
-                    this.player.collectItem(`Backpack:${color.toString(16)}`);
+                    const dropColor = this.player.collectItem(`Backpack:${color.toString(16)}`);
+                    if (dropColor !== undefined && dropColor !== null) {
+                        const pos = this.player.position.clone();
+                        this.spawnBackpack(pos.x + 0.5, pos.z + 0.5, dropColor);
+                    }
                 }
                 this.scene.remove(this.currentItem);
                 data.isOpened = true;

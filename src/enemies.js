@@ -11,8 +11,9 @@ export class EnemyManager {
         this.lastSpawn = 0;
         this.killedCount = 0;
         
-        const count = settings ? settings.enemyCount : 15;
+        const count = (settings && settings.gameMode === 'matrix') ? 0 : (settings ? settings.enemyCount : 15);
         this.difficulty = settings ? settings.difficulty : 'medium';
+        this.gameMode = settings && settings.gameMode ? settings.gameMode : 'survival';
 
         // Initial spawn
         for(let i=0; i<count; i++) this.spawnEnemy();
@@ -40,6 +41,7 @@ export class EnemyManager {
     }
 
     spawnEnemy() {
+        if (this.gameMode === 'matrix') return;
         const spawnSpan = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
         const x = (Math.random() - 0.5) * spawnSpan;
         const z = (Math.random() - 0.5) * spawnSpan;
@@ -54,6 +56,7 @@ export class EnemyManager {
     }
 
     update(dt) {
+        if (this.gameMode === 'matrix') return;
         this.enemies.forEach(enemy => {
             enemy.update(dt, this.player);
             
