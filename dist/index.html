@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voxel Fortnite Prototype</title>
-  <script type="module" crossorigin src="/threejs-voxel-fortnite/dist/assets/index-BPuYlxwJ.js"></script>
-  <link rel="stylesheet" crossorigin href="/threejs-voxel-fortnite/dist/assets/index-Cl6OYIpV.css">
+    <title>Voxel Firecraft Prototype</title>
+    <link rel="icon" type="image/png" href="/threejs-voxel-fortnite/dist/assets/favicon-BAg40dZS.png">
+  <script type="module" crossorigin src="/threejs-voxel-fortnite/dist/assets/index-D_GTmM6v.js"></script>
+  <link rel="stylesheet" crossorigin href="/threejs-voxel-fortnite/dist/assets/index-BFEJ4BYc.css">
 </head>
 <body>
     <div id="game-container"></div>
@@ -13,6 +14,9 @@
     <div id="ui-layer">
         <!-- Crosshair -->
         <div id="crosshair"></div>
+        <!-- Sniper Scope Overlay -->
+        <div id="scope-overlay" class="hidden"></div>
+        <button id="float-btn" class="hidden">FLOAT</button>
         <!-- Hover info above crosshair -->
         <div id="hover-info" style="position:absolute; top:48%; left:50%; transform:translate(-50%, -100%); color:#fff; pointer-events:none; font-family:Arial; font-size:14px; text-shadow:0 0 6px rgba(0,0,0,0.8);"></div>
 
@@ -37,7 +41,6 @@
         <div>Killed: <span id="kill-count">0</span></div>
         <div>Distance: <span id="distance-traveled">0.00</span> km</div>
         <div>Memory: <span id="memory-usage">0</span> MB</div>
-        <div>Target Dist: <span id="target-distance">---</span> m</div>
         <div id="debug-info" style="display: none; color: #f1c40f; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;">
             <div>Target: <span id="debug-target-name">None</span></div>
             <div>ID: <span id="debug-target-id">---</span></div>
@@ -84,6 +87,8 @@
             <div class="slot" data-slot="2">2</div>
             <div class="slot" data-slot="3">3</div>
             <div class="slot" data-slot="4">4</div>
+            <div class="slot" data-slot="5">5</div>
+            <div class="slot" data-slot="6">6</div>
         </div>
 
         <!-- Game Over / Victory Screen -->
@@ -96,7 +101,7 @@
 
     <!-- Main Menu (also used for pause) -->
     <div id="main-menu">
-        <h1 class="game-title">VOXEL FORTNITE</h1>
+        <h1 class="game-title">VOXEL FIRECRAFT</h1>
         
         <div class="menu-container">
             <div class="menu-group">
@@ -105,6 +110,16 @@
                     <option value="easy">Easy</option>
                     <option value="medium" selected>Medium</option>
                     <option value="hard">Hard</option>
+                </select>
+            </div>
+
+            <div class="menu-group">
+                <label>Game Mode</label>
+                <select id="setting-game-mode">
+                    <option value="survival" selected>Survival / Arcade</option>
+                    <option value="arena">Arena (Krunker-like)</option>
+                    <option value="matrix">Matrix (Player Only)</option>
+                    <option value="studio">Studio (Build Blocks)</option>
                 </select>
             </div>
 
@@ -138,10 +153,6 @@
                         <label for="setting-show-ids" style="margin: 0; color:white;">Show Rendered IDs</label>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <input type="checkbox" id="setting-show-target-distance" style="width: 20px; height: 20px;">
-                        <label for="setting-show-target-distance" style="margin: 0; color:white;">Show Target Distance (Top-Left)</label>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
                         <input type="checkbox" id="setting-minimap" style="width: 20px; height: 20px;" checked>
                         <label for="setting-minimap" style="margin: 0; color:white;">Show Minimap</label>
                     </div>
@@ -166,6 +177,7 @@
             </div>
 
             <button id="play-btn">PLAY GAME</button>
+            <button id="quit-btn">QUIT GAME</button>
         </div>
     </div>
 

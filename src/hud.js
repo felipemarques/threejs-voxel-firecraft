@@ -399,6 +399,13 @@ export class HUD {
         this.gameOverShown = false;
         this.showGameOver("VICTORY ROYALE!");
         document.getElementById('game-over-title').style.color = '#f1c40f'; // Gold color
+
+        // Stop player looping sounds (footsteps) on victory
+        try {
+            if (this.player && typeof this.player.stopFootsteps === 'function') {
+                this.player.stopFootsteps();
+            }
+        } catch (e) {}
         
         // Hide touch controls on victory
         try {

@@ -126,6 +126,7 @@ export class Player {
         this._hurtAccumulator = 0;
         this._hurtQueue = 0;
         this._hurtBeatTimer = null;
+        this._lastFootstepsActive = false;
         
         // Crouch state
         this.isCrouching = false;
@@ -1375,7 +1376,23 @@ export class Player {
 
     handleFootsteps(active) {
         try {
-            if (!this.audioCtx || !this.footstepsBuffer) return;
+            if (!this.audioCtx || !this.footstepsBuffer) {
+                this.stopFootsteps();
+                return;
+            }
+
+            // No change in state? keep current playback/stop state
+            if (active === this._lastFootstepsActive && ((active && this._footstepsSource) || (!active && !this._footstepsSource))) {
+                // Still update rate if playing
+                if (active && this._footstepsSource) {
+                    const rate = this.isSprinting ? 1.4 : (this.isCrouching ? 0.8 : 1.0);
+                    this._footstepsSource.playbackRate.value = rate;
+                }
+                return;
+            }
+
+            this._lastFootstepsActive = active;
+
             if (active) {
                 if (this.audioCtx.state === 'suspended') {
                     this.audioCtx.resume();
@@ -1401,17 +1418,24 @@ export class Player {
                     this._footstepsGain = null;
                 };
             } else {
-                if (this._footstepsSource) {
-                    try { this._footstepsSource.stop(); } catch (e) {}
-                    this._footstepsSource.disconnect();
-                    if (this._footstepsGain) this._footstepsGain.disconnect();
-                    this._footstepsSource = null;
-                    this._footstepsGain = null;
-                }
+                this.stopFootsteps();
             }
         } catch (e) {
             console.warn('handleFootsteps error:', e);
         }
+    }
+
+    stopFootsteps() {
+        this._lastFootstepsActive = false;
+        if (this._footstepsSource) {
+            try { this._footstepsSource.stop(); } catch (e) {}
+            try { this._footstepsSource.disconnect(); } catch (e) {}
+        }
+        if (this._footstepsGain) {
+            try { this._footstepsGain.disconnect(); } catch (e) {}
+        }
+        this._footstepsSource = null;
+        this._footstepsGain = null;
     }
 
 

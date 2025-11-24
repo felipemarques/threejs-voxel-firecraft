@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import deathSfx from './assets/mixkit-kill-blood-zombie.ogg';
+import zombieGroanSfx from './assets/zombie.ogg';
 
 export class EnemyManager {
     constructor(scene, player, world, settings) {
@@ -10,6 +11,7 @@ export class EnemyManager {
         this.spawnInterval = 5000; 
         this.lastSpawn = 0;
         this.killedCount = 0;
+        this.groanBuffer = null;
         
         const count = (settings && (settings.gameMode === 'matrix' || settings.gameMode === 'studio')) ? 0 : (settings ? settings.enemyCount : 15);
         this.difficulty = settings ? settings.difficulty : 'medium';
@@ -36,6 +38,18 @@ export class EnemyManager {
                         });
                     })
                     .catch(e => {});
+                // Load proximity groan buffer
+                fetch(zombieGroanSfx)
+                    .then(r => r.arrayBuffer())
+                    .then(b => this.audioCtx.decodeAudioData(b))
+                    .then(d => {
+                        this.groanBuffer = d;
+                        this.enemies.forEach(e => {
+                            e.audioCtx = this.audioCtx;
+                            e.groanBuffer = d;
+                        });
+                    })
+                    .catch(e => {});
             }
         } catch(e) {}
     }
@@ -51,6 +65,7 @@ export class EnemyManager {
         const enemy = new Bot(this.scene, x, groundY, z, this.difficulty, mapHalfSize, this.player);
         enemy.audioCtx = this.audioCtx; // Pass audio context to bot
         enemy.deathBuffer = this.deathBuffer; // Pass death buffer
+        enemy.groanBuffer = this.groanBuffer; // Pass groan buffer
         enemy.world = this.world;
         this.enemies.push(enemy);
     }
@@ -96,6 +111,11 @@ class Bot {
         this.deathDuration = 0;
         this.deathFallProgress = 0;
         this.readyToDespawn = false;
+        this.groanBuffer = null;
+        this.groanCooldown = 0;
+        this.groanRange = 15;
+        this._groanSource = null;
+        this._groanGain = null;
         
         // Stats based on difficulty
         if (difficulty === 'easy') {
@@ -202,6 +222,17 @@ class Bot {
         if (this.isDead) {
             this.updateDeath(dt);
             return;
+        }
+
+        // Groan when close to the player (alive only)
+        this.groanCooldown = Math.max(0, this.groanCooldown - dt);
+        if (this.groanBuffer && this.audioCtx && player && this.groanCooldown <= 0) {
+            const distToPlayer = this.position.distanceTo(player.position);
+            if (distToPlayer <= this.groanRange) {
+                this.playGroan();
+                // Slightly randomized interval to avoid synced spam
+                this.groanCooldown = 2 + Math.random() * 2.5;
+            }
         }
 
         const playerPos = player.position;
@@ -497,6 +528,7 @@ class Bot {
         this.deathTimer = 0;
         this.deathFallProgress = 0;
         this.deathDuration = 3 + Math.random() * 2; // 3–5 seconds before despawn
+        this.stopGroan();
 
         // Hide health bar during death
         if (this.healthBarBg) this.healthBarBg.visible = false;
@@ -517,11 +549,11 @@ class Bot {
                     } else if (this.audioCtx.state === 'running') {
                         this.playDeathSound();
                     }
-                }
-            } catch (e) {
-                console.warn('Error playing death sound:', e);
             }
+        } catch (e) {
+            console.warn('Error playing death sound:', e);
         }
+    }
     }
 
     updateDeath(dt) {
@@ -540,6 +572,43 @@ class Bot {
                 this.scene.remove(this.mesh);
             }
             this.readyToDespawn = true;
+        }
+    }
+
+    playGroan() {
+        try {
+            if (!this.audioCtx || !this.groanBuffer) return;
+            if (this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume().then(() => this.playGroan());
+                return;
+            }
+            const src = this.audioCtx.createBufferSource();
+            src.buffer = this.groanBuffer;
+            const gain = this.audioCtx.createGain();
+            gain.gain.value = 0.45;
+            src.connect(gain);
+            gain.connect(this.audioCtx.destination);
+            src.onended = () => {
+                this._groanSource = null;
+                this._groanGain = null;
+            };
+            src.start(0);
+            this._groanSource = src;
+            this._groanGain = gain;
+        } catch (e) {
+            console.warn('playGroan error:', e);
+        }
+    }
+
+    stopGroan() {
+        if (this._groanSource) {
+            try { this._groanSource.stop(); } catch (e) {}
+            try { this._groanSource.disconnect(); } catch (e) {}
+            this._groanSource = null;
+        }
+        if (this._groanGain) {
+            try { this._groanGain.disconnect(); } catch (e) {}
+            this._groanGain = null;
         }
     }
 }

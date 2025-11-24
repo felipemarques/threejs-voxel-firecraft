@@ -380,6 +380,11 @@ class Game {
         if (this.player.controls && this.player.controls.isLocked) {
             this.player.controls.unlock();
         }
+
+        // Stop looping SFX while paused
+        if (this.player && typeof this.player.stopFootsteps === 'function') {
+            this.player.stopFootsteps();
+        }
         
         // Pause background music
         this.pauseBackgroundMusic();
