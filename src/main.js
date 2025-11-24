@@ -69,6 +69,10 @@ class Game {
         
         // Clock
         this.clock = new THREE.Clock();
+        // Object picking for click-to-identify
+        this._pickRaycaster = new THREE.Raycaster();
+        this._objectClickHandler = null;
+        this._objectClickTarget = null;
         // Pause state
         this.isPaused = false;
         this.pauseMenu = document.getElementById('pause-menu');
@@ -268,6 +272,8 @@ class Game {
         
         // Give player reference to enemies for shooting
         this.player.setEnemyManager(this.enemyManager);
+        // Enable click-to-identify in arcade/survival styles
+        this.setupObjectInspector();
 
         // Setup float toggle for Studio
         const floatBtn = document.getElementById('float-btn');
@@ -335,6 +341,73 @@ class Game {
         }
 
         this.animate();
+    }
+
+    setupObjectInspector() {
+        const canvas = this.renderer ? this.renderer.domElement : null;
+        if (!canvas) return;
+
+        // Remove previous handler if reusing the same canvas
+        if (this._objectClickHandler && this._objectClickTarget) {
+            try {
+                this._objectClickTarget.removeEventListener('click', this._objectClickHandler);
+            } catch (e) {}
+        }
+        this._objectClickTarget = canvas;
+
+        this._objectClickHandler = (event) => {
+            if (!this.player || !this.hud) return;
+            const mode = this.player.gameMode || 'survival';
+            // Feature intended for arcade/survival style play (skip matrix/studio)
+            if (mode === 'matrix' || mode === 'studio') return;
+
+            let ndcX = 0;
+            let ndcY = 0;
+            if (this.player.controls && this.player.controls.isLocked) {
+                // When locked, use center of screen
+                ndcX = 0;
+                ndcY = 0;
+            } else {
+                const rect = canvas.getBoundingClientRect();
+                ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+            }
+
+            this._pickRaycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+
+            const pickables = [];
+            if (this.world && Array.isArray(this.world.objects)) pickables.push(...this.world.objects);
+            if (this.itemManager && Array.isArray(this.itemManager.items)) pickables.push(...this.itemManager.items);
+            if (this.enemyManager && Array.isArray(this.enemyManager.enemies)) {
+                this.enemyManager.enemies.forEach(enemy => {
+                    if (enemy && enemy.mesh) pickables.push(enemy.mesh);
+                });
+            }
+            if (pickables.length === 0) return;
+
+            const hits = this._pickRaycaster.intersectObjects(pickables, true);
+            if (!hits.length) return;
+
+            // Find first ancestor that carries game metadata
+            let obj = hits[0].object;
+            let data = null;
+            while (obj) {
+                if (obj.userData && (obj.userData.gameId || obj.userData.gameid) && obj.userData.gameName) {
+                    data = obj.userData;
+                    break;
+                }
+                obj = obj.parent;
+            }
+            if (!data) return;
+
+            const name = data.gameName || 'Object';
+            const id = data.gameId || data.gameid || '---';
+            if (typeof this.hud.showSelectionInfo === 'function') {
+                this.hud.showSelectionInfo(name, id);
+            }
+        };
+
+        canvas.addEventListener('click', this._objectClickHandler);
     }
 
     togglePause() {

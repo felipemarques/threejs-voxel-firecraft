@@ -1,6 +1,6 @@
 # Voxel Fortnite
 
-A voxel-style battle royale game inspired by Fortnite, built with Three.js. Survive against AI enemies in a shrinking storm zone while managing your resources and exploring the procedurally generated world.
+A voxel-style battle royale game inspired by Fortnite, built with Three.js. Survive against AI enemies in a shrinking storm zone while managing your resources and exploring the procedurally generated world. Also includes Arena (fast skirmish), Matrix (sandbox without enemies) and Studio (build mode) variants.
 
 ![Main Menu](docs/main-screen.jpg)
 
@@ -12,7 +12,7 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 
 ## 🎯 Objective
 
-**Primary Goal:** Eliminate all enemies on the map to achieve victory.
+**Primary Goal:** Eliminate all enemies on the map to achieve victory (Survival/Arena). Matrix is a chill mode without enemies; Studio lets you build freely.
 
 **Secondary Goals:**
 - Survive the shrinking storm zone
@@ -30,7 +30,7 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 - **V** - Toggle camera mode (First Person / Third Person)
 
 ### Combat
-- **Left Click** - Shoot / Punch
+- **Left Click** - Shoot / Punch (if no ammo/weapon)
 - **Right Click** - Aim (Sniper zoom)
 - **R** - Reload weapon
 - **1/2/3/4** - Switch weapons (hotbar)
@@ -38,6 +38,7 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 ### Interaction
 - **E** - Interact with chests and objects
 - **ESC** - Pause menu
+- **`** (Backtick) - Toggle debug overlay
 
 ### Mobile Controls
 - **Left Joystick** - Move
@@ -46,13 +47,21 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 
 ## 🎲 Game Features
 
+### Game Modes
+- **Survival / Arcade:** Classic loop with storm, loot, enemies.
+- **Arena:** Smaller map with dense cover for faster matches.
+- **Matrix:** Sandbox with no enemies for exploration and testing.
+- **Studio:** Creative mode with block building, scaling, move/remove tools and optional floating toggle.
+
 ### Combat System
-- **4 Weapon Types:**
-- **4 Weapon Types:**
-  - **Fist:** Melee weapon, 10 damage, 0.2s cooldown
+- **6 Weapon Types:**
   - **Pistol:** 20 damage, 12/60 ammo, 0.5s cooldown
   - **Rifle:** 25 damage, 30/120 ammo, 0.15s cooldown
   - **Sniper:** 100 damage, 5/20 ammo, 2.0s cooldown with zoom
+  - **SMG:** 15 damage, 40/200 ammo, 0.08s cooldown
+  - **Shotgun:** 60 damage, 6/24 ammo, 1.0s cooldown
+  - **DMR:** 45 damage, 12/48 ammo, 0.35s cooldown with mid-zoom
+  - **Punch:** Always available fallback when unarmed or out of ammo
 
 ### Stamina System
 - **Stamina Bar:** Depletes when punching rapidly or walking long distances
@@ -85,17 +94,18 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 
 ### Loot System
 - **Chests:** Scattered throughout the map, especially inside houses
-- **Weapons:** Find better weapons to increase your firepower
+- **Weapons:** Find better weapons to increase your firepower (including SMG/Shotgun/DMR)
 - **Ammo:** Collect ammunition for your firearms
+- **Juice Bottles:** Restore stamina
+- **Backpacks:** Cosmetic pickups
 - **Interactive:** Press **E** to open chests and collect items
 
 ### World Generation
 - **Voxel Environment:** Minecraft-style blocky aesthetics
 - **Procedural Elements:**
-  - 50+ trees (Oak and Pine varieties)
-  - 30+ rocks and natural obstacles
-  - 8 houses with accessible interiors
-  - Color-varied grass terrain
+  - Large/small houses labeled as House/Mansion/Cabin plus plateaus, bunkers, ramps
+  - Trees, rocks, bushes, grass clumps, vehicles, plateaus, small buildings
+  - Arena layouts with crates and ramps
   
 ### HUD & Dashboard
 
@@ -110,14 +120,20 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 - **Killed:** Enemies eliminated
 - **Distance:** Kilometers traveled
 - **Memory:** RAM usage in MB
+- **Target Inspect:** Shows name/ID/type of whatever your crosshair is on
 
 **Weapon Info (Bottom Right):**
 - Current weapon name
 - Ammo count (current magazine / total ammo)
 
 **Debug Mode (Optional):**
-- Enable in settings to see object IDs and names
-- Displays target information when aiming at objects
+- Enable in settings or press **`** to see object IDs and names
+- Per-object labels and extended target info
+
+**Exploration Aids:**
+- Minimap with player marker (toggleable)
+- Storm timer indicator
+- Touch controls for mobile (auto-enable or via settings)
 
 ## ⚙️ Settings & Customization
 
@@ -127,10 +143,10 @@ Access the settings menu from the main menu or pause screen:
 - **Difficulty:** Easy / Medium / Hard
   - Affects enemy health, damage, and speed
   
-- **Enemy Count:** 5-30 enemies
-  - Adjust the number of zombies on the map
+- **Enemy Count:** 5-500 enemies
+  - Adjust the number of zombies on the map (Matrix/Studio spawn none)
   
-- **Storm Time:** 60-300 seconds
+- **Storm Time:** 60-1800 seconds
   - Configure how long before the storm fully closes
   
 - **Camera Mode:** First Person / Third Person
@@ -139,7 +155,12 @@ Access the settings menu from the main menu or pause screen:
   
 - **Debug Mode:** On / Off
   - Toggle debug information overlay
-
+- **Show Rendered IDs:** On / Off
+- **Show Minimap:** On / Off
+- **Touch Controls:** On / Off (mobile-friendly overlay)
+- **Background Music:** On / Off and volume slider
+- **Game Mode:** Survival/Arena/Matrix/Studio
+  
 ### Settings Persistence
 All settings are saved to browser localStorage and persist between sessions.
 

@@ -21,6 +21,8 @@ export class HUD {
         // Debug container for per‑object labels
         this.debugContainer = document.getElementById('debug-container');
         this.gameOverScreen = document.getElementById('game-over-screen');
+        this.selectionInfo = document.getElementById('selection-info');
+        this.selectionInfoTimeout = null;
         
         // Dashboard Elements
         this.fpsCounter = document.getElementById('fps-counter');
@@ -28,6 +30,7 @@ export class HUD {
         this.killCount = document.getElementById('kill-count');
         this.distanceTraveled = document.getElementById('distance-traveled');
         this.memoryUsage = document.getElementById('memory-usage');
+        this.targetInspect = document.getElementById('target-inspect');
 
         // Debug Elements
         this.debugInfo = document.getElementById('debug-info');
@@ -355,6 +358,80 @@ export class HUD {
         if (this.player.isDead && this.player.gameMode !== 'matrix') {
             this.showGameOver("YOU DIED");
         }
+
+        // Show whatever is under the crosshair (world item/enemy/structure)
+        this.updateTargetInspect();
+    }
+
+    showSelectionInfo(name, id) {
+        if (!this.selectionInfo) return;
+        const readableName = name || 'Object';
+        const readableId = id || '---';
+        this.selectionInfo.innerText = `${readableName} (${readableId})`;
+        this.selectionInfo.classList.remove('hidden');
+        if (this.selectionInfoTimeout) clearTimeout(this.selectionInfoTimeout);
+        this.selectionInfoTimeout = setTimeout(() => {
+            try {
+                this.selectionInfo.classList.add('hidden');
+            } catch (e) {}
+        }, 2500);
+    }
+
+    updateTargetInspect() {
+        if (!this.targetInspect || !this.player || !this.player.camera) return;
+        const raycaster = this.raycaster;
+        const center = new THREE.Vector2(0, 0);
+        raycaster.setFromCamera(center, this.player.camera);
+
+        const pickables = [];
+        // World geometry/props
+        if (this.world && Array.isArray(this.world.objects)) pickables.push(...this.world.objects);
+        // Items (chests, bottles, backpacks)
+        if (this.world && this.world.itemManager && Array.isArray(this.world.itemManager.items)) {
+            pickables.push(...this.world.itemManager.items);
+        }
+        // Enemies
+        if (this.player.enemyManager && Array.isArray(this.player.enemyManager.enemies)) {
+            this.player.enemyManager.enemies.forEach(enemy => {
+                if (enemy && enemy.mesh) pickables.push(enemy.mesh);
+            });
+        }
+
+        if (pickables.length === 0) {
+            this.targetInspect.innerText = 'Target: ---';
+            return;
+        }
+
+        // Deduplicate objects to avoid redundant ray tests
+        const uniq = Array.from(new Set(pickables));
+        const hits = raycaster.intersectObjects(uniq, true);
+        if (!hits.length) {
+            this.targetInspect.innerText = 'Target: ---';
+            return;
+        }
+
+        let data = null;
+        for (let i = 0; i < hits.length; i++) {
+            let obj = hits[i].object;
+            while (obj) {
+                if (obj.userData && (obj.userData.gameName || obj.userData.type || obj.userData.gameId || obj.userData.gameid)) {
+                    data = obj.userData;
+                    break;
+                }
+                obj = obj.parent;
+            }
+            if (data) break;
+        }
+
+        if (!data) {
+            this.targetInspect.innerText = 'Target: ---';
+            return;
+        }
+
+        const name = data.gameName || 'Object';
+        const id = data.gameId || data.gameid || '---';
+        const type = data.type || '---';
+        this.targetInspect.innerText = `Target: ${name} (ID: ${id}) [${type}]`;
     }
 
     showGameOver(message) {

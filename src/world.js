@@ -160,9 +160,16 @@ export class World {
             const x = safeCoord(0.75);
             const z = safeCoord(0.75);
             const y = groundY(x, z);
-            const house = this.createHouse(x, z);
+            // Randomize size to better label larger builds
+            const roll = Math.random();
+            const isLarge = roll > 0.7;
+            const isSmall = roll < 0.25;
+            const scale = isLarge ? 1.55 : (isSmall ? 0.9 : 1);
+            const sizeLabel = isLarge ? 'Mansion' : (isSmall ? 'Cabin' : 'House');
+            const sizeTag = isLarge ? 'large' : (isSmall ? 'small' : 'medium');
+            const house = this.createHouse(x, z, { scale });
             house.position.y = y;
-            house.userData = { gameId: this.generateID(), gameName: 'House', type: 'house' };
+            house.userData = { gameId: this.generateID(), gameName: sizeLabel, type: 'house', size: sizeTag };
             this.scene.add(house);
             this.objects.push(house);
             
@@ -694,7 +701,7 @@ export class World {
         return g;
     }
 
-    createHouse(x, z) {
+    createHouse(x, z, { scale = 1 } = {}) {
         const houseGroup = new THREE.Group();
         houseGroup.position.set(x, 0, z);
         houseGroup.rotation.y = Math.random() * Math.PI * 2;
@@ -742,6 +749,8 @@ export class World {
         win2.position.set(2, 2.2, -3.26);
         houseGroup.add(win1);
         houseGroup.add(win2);
+
+        houseGroup.scale.setScalar(scale);
 
         return houseGroup;
     }

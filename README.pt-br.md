@@ -1,6 +1,6 @@
 # Voxel Fortnite
 
-Um jogo battle royale em estilo voxel inspirado em Fortnite, construído com Three.js. Sobreviva contra inimigos controlados por IA em uma zona de tempestade que encolhe enquanto gerencia seus recursos e explora o mundo gerado proceduralmente.
+Um jogo battle royale em estilo voxel inspirado em Fortnite, construído com Three.js. Sobreviva contra inimigos controlados por IA em uma zona de tempestade que encolhe enquanto gerencia seus recursos e explora o mundo gerado proceduralmente. Inclui modos Arena (skirmish rápido), Matrix (sandbox sem inimigos) e Studio (construção).
 
 ![Menu Principal](docs/main-screen.jpg)
 
@@ -12,7 +12,7 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 
 ## 🎯 Objetivo
 
-**Objetivo Principal:** Elimine todos os inimigos no mapa para alcançar a vitória.
+**Objetivo Principal:** Elimine todos os inimigos no mapa para alcançar a vitória (Survival/Arena). Matrix é um modo tranquilo sem inimigos; Studio permite construir livremente.
 
 **Objetivos Secundários:**
 - Sobreviva à zona de tempestade que encolhe
@@ -30,7 +30,7 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - **V** - Alternar modo de câmera (Primeira Pessoa / Terceira Pessoa)
 
 ### Combate
-- **Clique Esquerdo** - Atirar / Socar
+- **Clique Esquerdo** - Atirar / Socar (se sem munição/arma)
 - **Clique Direito** - Mirar (zoom da sniper)
 - **R** - Recarregar arma
 - **1/2/3/4** - Trocar armas (hotbar)
@@ -47,12 +47,21 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 
 ## 🎲 Recursos do Jogo
 
+### Modos de Jogo
+- **Survival / Arcade:** Loop clássico com tempestade, loot e inimigos.
+- **Arena:** Mapa menor com cobertura densa para partidas rápidas.
+- **Matrix:** Sandbox sem inimigos para explorar e testar.
+- **Studio:** Modo criativo com construção de blocos, redimensionar, mover/remover e flutuação opcional.
+
 ### Sistema de Combate
-- **4 Tipos de Armas:**
-  - **Fist (Soco):** Arma corpo a corpo, 10 de dano, 0.2s de cooldown
+- **6 Tipos de Armas:**
   - **Pistol (Pistola):** 20 de dano, 12/60 munição, 0.5s de cooldown
   - **Rifle:** 25 de dano, 30/120 munição, 0.15s de cooldown
   - **Sniper:** 100 de dano, 5/20 munição, 2.0s de cooldown com zoom
+  - **SMG:** 15 de dano, 40/200 munição, 0.08s de cooldown
+  - **Shotgun:** 60 de dano, 6/24 munição, 1.0s de cooldown
+  - **DMR:** 45 de dano, 12/48 munição, 0.35s de cooldown com zoom médio
+  - **Soco:** Sempre disponível como fallback
 
 ### Sistema de Stamina
 - **Barra de Stamina:** Diminui ao socar rapidamente ou caminhar longas distâncias
@@ -85,17 +94,18 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 
 ### Sistema de Loot
 - **Baús:** Espalhados pelo mapa, especialmente dentro de casas
-- **Armas:** Encontre armas melhores para aumentar seu poder de fogo
+- **Armas:** Encontre armas melhores para aumentar seu poder de fogo (incluindo SMG/Shotgun/DMR)
 - **Munição:** Colete munição para suas armas de fogo
+- **Garrafas de Stamina:** Recuperam stamina
+- **Mochilas:** Colecionáveis cosméticos
 - **Interativo:** Pressione **E** para abrir baús e coletar itens
 
 ### Geração de Mundo
 - **Ambiente Voxel:** Estética blocada estilo Minecraft
 - **Elementos Procedurais:**
-  - 50+ árvores (variedades de Carvalho e Pinheiro)
-  - 30+ rochas e obstáculos naturais
-  - 8 casas com interiores acessíveis
-  - Terreno de grama com variação de cores
+  - Casas pequenas, padrão e grandes (Cabin/House/Mansion) mais platôs, bunkers e rampas
+  - Árvores, rochas, arbustos, tufos de grama, veículos, platôs e pequenos prédios
+  - Layouts de arena com caixas e rampas
   
 ### HUD & Dashboard
 
@@ -110,14 +120,20 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - **Killed:** Inimigos eliminados
 - **Distance:** Quilômetros percorridos
 - **Memory:** Uso de RAM em MB
+- **Target Inspect:** Mostra nome/ID/tipo do objeto sob a mira
 
 **Informações da Arma (Inferior Direito):**
 - Nome da arma atual
 - Contagem de munição (pente atual / munição total)
 
 **Modo Debug (Opcional):**
-- Ative nas configurações para ver IDs e nomes de objetos
-- Exibe informações do alvo ao mirar em objetos
+- Ative nas configurações ou com **`** para ver IDs e nomes de objetos
+- Rótulos por objeto e informações avançadas de alvo
+
+**Ajudas de Exploração:**
+- Minimap com marcador do jogador (ativável/desativável)
+- Indicador de tempo da tempestade
+- Controles touch para mobile (auto ou via configurações)
 
 ## ⚙️ Configurações & Personalização
 
@@ -127,10 +143,10 @@ Acesse o menu de configurações no menu principal ou tela de pausa:
 - **Dificuldade:** Fácil / Médio / Difícil
   - Afeta vida, dano e velocidade dos inimigos
   
-- **Contagem de Inimigos:** 5-30 inimigos
+- **Contagem de Inimigos:** 5-500 inimigos
   - Ajuste o número de zumbis no mapa
   
-- **Tempo da Tempestade:** 60-300 segundos
+- **Tempo da Tempestade:** 60-1800 segundos
   - Configure quanto tempo até a tempestade fechar completamente
   
 - **Modo de Câmera:** Primeira Pessoa / Terceira Pessoa
@@ -139,6 +155,11 @@ Acesse o menu de configurações no menu principal ou tela de pausa:
   
 - **Modo Debug:** Ligado / Desligado
   - Alterna sobreposição de informações de debug
+- **Mostrar IDs Renderizados:** Ligado / Desligado
+- **Mostrar Minimap:** Ligado / Desligado
+- **Controles Touch:** Ligado / Desligado (overlay mobile)
+- **Música de Fundo:** Ligado / Desligado e controle de volume
+- **Modo de Jogo:** Survival/Arena/Matrix/Studio
 
 ### Persistência de Configurações
 Todas as configurações são salvas no localStorage do navegador e persistem entre sessões.
