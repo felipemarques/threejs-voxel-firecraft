@@ -105,7 +105,7 @@ class Game {
         const stormVal = document.getElementById('storm-time-val');
 
         // Load Settings
-        const savedSettings = localStorage.getItem('voxel-fortnite-settings');
+        const savedSettings = localStorage.getItem('voxel-firecraft-settings');
         if (savedSettings) {
             const s = JSON.parse(savedSettings);
             diffSelect.value = s.difficulty;
@@ -147,7 +147,7 @@ class Game {
             };
             
             // Save Settings
-            localStorage.setItem('voxel-fortnite-settings', JSON.stringify(settings));
+            localStorage.setItem('voxel-firecraft-settings', JSON.stringify(settings));
             
             // Hide Menu
             menu.style.display = 'none';
@@ -188,7 +188,7 @@ class Game {
         if (quitBtn) {
             quitBtn.onclick = () => {
                 try {
-                    localStorage.removeItem('voxel-fortnite-settings');
+                    localStorage.removeItem('voxel-firecraft-settings');
                 } catch (e) {}
                 location.reload();
             };
@@ -223,9 +223,9 @@ class Game {
         if (touchCheckbox) {
             touchCheckbox.onchange = () => {
                 try {
-                    const saved = JSON.parse(localStorage.getItem('voxel-fortnite-settings') || '{}');
+                    const saved = JSON.parse(localStorage.getItem('voxel-firecraft-settings') || '{}');
                     saved.useTouchControls = touchCheckbox.checked;
-                    localStorage.setItem('voxel-fortnite-settings', JSON.stringify(saved));
+                    localStorage.setItem('voxel-firecraft-settings', JSON.stringify(saved));
                 } catch (e) {}
             };
         }
@@ -284,6 +284,13 @@ class Game {
             } else {
                 floatBtn.classList.add('hidden');
             }
+        }
+
+        // Hide storm timer in studio
+        const stormTimer = document.getElementById('storm-timer');
+        if (stormTimer) {
+            const hide = effectiveSettings.gameMode === 'studio';
+            stormTimer.classList.toggle('hidden', hide);
         }
 
         // Event Listeners
@@ -451,7 +458,8 @@ class Game {
 
             try {
                 const stormStatus = this.world.update(cappedDt, this.player.position);
-                if (stormStatus && stormStatus.inStorm) {
+                const isStudio = this.player && this.player.gameMode === 'studio';
+                if (!isStudio && stormStatus && stormStatus.inStorm) {
                     this.player.takeDamage(1 * cappedDt); // Reduced damage: 1 per second
                 } else if (this.player && typeof this.player.clearHurtQueue === 'function') {
                     // Leaving storm: stop hurt loop unless enemies hit again
@@ -660,7 +668,7 @@ window.game = new Game();
 // Setup debug overlay: shows on-screen logs when enabled in settings or via localStorage/flag
 (function setupDebugOverlay(){
     try {
-        const saved = JSON.parse(localStorage.getItem('voxel-fortnite-settings') || '{}');
+                const saved = JSON.parse(localStorage.getItem('voxel-firecraft-settings') || '{}');
         const want = (saved && saved.debugMode) || localStorage.getItem('showDebugOverlay') === 'true' || !!window.DEBUG_OVERLAY;
         // create overlay (it patches console); auto-show only when requested
         window.debugOverlay = createDebugOverlay({ autoShow: !!want });

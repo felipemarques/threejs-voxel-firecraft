@@ -21,6 +21,8 @@ export class Player {
         this.maxBlockSize = 2;
         this.previewBlock = null;
         this.isFloating = false;
+        this.selectedBlock = null;
+        this.selectedBlockHelper = null;
 
         // Stats
         this.health = 100;
@@ -462,7 +464,14 @@ export class Player {
                     }
                     break;
                 case 'KeyU':
-                    if (this.gameMode === 'studio') this.isFloating = true;
+                    if (this.gameMode === 'studio') {
+                        this.isFloating = !this.isFloating;
+                        if (!this.isFloating) {
+                            const y = this.getSurfaceHeight(this.position.x, this.position.z);
+                            this.mesh.position.y = y;
+                            this.velocity.y = 0;
+                        }
+                    }
                     break;
                 case 'Minus':
                     if (this.gameMode === 'studio') this.adjustBlockSize(-0.1);
@@ -474,16 +483,10 @@ export class Player {
                     if (this.gameMode === 'studio') this.moveLastBlock();
                     break;
                 case 'KeyX':
-                    if (this.gameMode === 'studio') this.removeLastBlock();
-                    break;
-                case 'BracketLeft':
-                    if (this.gameMode === 'studio') this.adjustBlockSize(-0.1);
-                    break;
-                case 'BracketRight':
-                    if (this.gameMode === 'studio') this.adjustBlockSize(0.1);
-                    break;
-                case 'KeyM':
-                    if (this.gameMode === 'studio') this.moveLastBlock();
+                    if (this.gameMode === 'studio') {
+                        if (this.selectedBlock) this.removeBlock(this.selectedBlock);
+                        else this.removeLastBlock();
+                    }
                     break;
                 case 'KeyR': this.reload(); break;
                 case 'KeyC': 
@@ -516,15 +519,16 @@ export class Player {
                     // stop sprint input
                     this.isSprinting = false;
                     break;
-                case 'KeyU':
-                    if (this.gameMode === 'studio') this.isFloating = false;
-                    break;
             }
         };
 
         // Mouse Inputs
         const onMouseDown = (event) => {
             if (this.controls.isLocked) {
+                if (this.gameMode === 'studio') {
+                    const hit = this.selectBlockUnderCrosshair();
+                    if (hit) return; // consume click for selection
+                }
                 if (event.button === 0) { // Left Click
                     this.shoot();
                 } else if (event.button === 2) { // Right Click
@@ -1002,6 +1006,7 @@ export class Player {
             this.mesh.position.y += this.velocity.y * dt;
 
             if (!this.isFloating) {
+            if (!this.isFloating) {
                 if (this.mesh.position.y < 0) {
                     this.velocity.y = 0;
                     this.mesh.position.y = 0;
@@ -1014,6 +1019,7 @@ export class Player {
                     this.velocity.y = 0;
                     this.canJump = true;
                 }
+            }
             }
             const onGround = (!this.isFloating) && (this.canJump || this.mesh.position.y <= 0.01);
 
@@ -1492,6 +1498,75 @@ export class Player {
         if (block && block.material) {
             if (Array.isArray(block.material)) block.material.forEach(m => m.dispose());
             else block.material.dispose();
+        }
+        if (this.selectedBlock === block) {
+            this.clearBlockSelection();
+        }
+    }
+
+    selectBlockUnderCrosshair() {
+        if (!this.world || !this.world.objects) return false;
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+        const intersects = raycaster.intersectObjects(this.world.objects, true);
+        if (intersects.length === 0) {
+            this.clearBlockSelection();
+            return false;
+        }
+        let found = null;
+        for (const hit of intersects) {
+            let obj = hit.object;
+            while (obj && obj.parent) {
+                if (obj.userData && obj.userData.type === 'block') {
+                    found = obj;
+                    break;
+                }
+                obj = obj.parent;
+            }
+            if (found) break;
+        }
+        if (found) {
+            this.setBlockSelection(found);
+            return true;
+        } else {
+            this.clearBlockSelection();
+            return false;
+        }
+    }
+
+    setBlockSelection(block) {
+        this.clearBlockSelection();
+        this.selectedBlock = block;
+        const helper = new THREE.BoxHelper(block, 0xffff00);
+        helper.userData = { ignoreSelect: true };
+        this.scene.add(helper);
+        this.selectedBlockHelper = helper;
+    }
+
+    clearBlockSelection() {
+        this.selectedBlock = null;
+        if (this.selectedBlockHelper) {
+            this.scene.remove(this.selectedBlockHelper);
+            if (this.selectedBlockHelper.material) this.selectedBlockHelper.material.dispose();
+            if (this.selectedBlockHelper.geometry) this.selectedBlockHelper.geometry.dispose();
+            this.selectedBlockHelper = null;
+        }
+    }
+
+    removeBlock(block) {
+        if (!block) return;
+        this.placedBlocks = this.placedBlocks.filter(b => b !== block);
+        if (block.parent) block.parent.remove(block);
+        if (this.world && this.world.objects) {
+            this.world.objects = this.world.objects.filter(o => o !== block);
+        }
+        if (block.geometry) block.geometry.dispose();
+        if (block.material) {
+            if (Array.isArray(block.material)) block.material.forEach(m => m.dispose());
+            else block.material.dispose();
+        }
+        if (this.selectedBlock === block) {
+            this.clearBlockSelection();
         }
     }
 
