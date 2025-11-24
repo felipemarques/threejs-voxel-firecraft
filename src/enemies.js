@@ -11,7 +11,7 @@ export class EnemyManager {
         this.lastSpawn = 0;
         this.killedCount = 0;
         
-        const count = (settings && settings.gameMode === 'matrix') ? 0 : (settings ? settings.enemyCount : 15);
+        const count = (settings && (settings.gameMode === 'matrix' || settings.gameMode === 'studio')) ? 0 : (settings ? settings.enemyCount : 15);
         this.difficulty = settings ? settings.difficulty : 'medium';
         this.gameMode = settings && settings.gameMode ? settings.gameMode : 'survival';
 
@@ -41,7 +41,7 @@ export class EnemyManager {
     }
 
     spawnEnemy() {
-        if (this.gameMode === 'matrix') return;
+        if (this.gameMode === 'matrix' || this.gameMode === 'studio') return;
         const spawnSpan = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
         const x = (Math.random() - 0.5) * spawnSpan;
         const z = (Math.random() - 0.5) * spawnSpan;
@@ -56,7 +56,7 @@ export class EnemyManager {
     }
 
     update(dt) {
-        if (this.gameMode === 'matrix') return;
+        if (this.gameMode === 'matrix' || this.gameMode === 'studio') return;
         this.enemies.forEach(enemy => {
             enemy.update(dt, this.player);
             
@@ -64,6 +64,12 @@ export class EnemyManager {
             const dist = Math.sqrt(enemy.position.x * enemy.position.x + enemy.position.z * enemy.position.z);
             if (dist > this.world.stormRadius) {
                 enemy.takeDamage(5 * dt); // 5 dps from storm
+            }
+            // Keep inside bounds
+            if (this.world && typeof this.world.halfMapSize === 'number') {
+                const limit = this.world.halfMapSize - 1;
+                enemy.position.x = Math.max(-limit, Math.min(limit, enemy.position.x));
+                enemy.position.z = Math.max(-limit, Math.min(limit, enemy.position.z));
             }
         });
         

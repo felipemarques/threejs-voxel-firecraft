@@ -3,6 +3,8 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import gunshotSfx from './assets/mixkit-game-gun-shot.ogg';
 import smackSfx from './assets/smack.ogg';
 import ughSfx from './assets/ugh.ogg';
+import footStepsSfx from './assets/mixkit-footsteps-on-tall-grass-532.ogg';
+
 
 export class Player {
     constructor(camera, scene, worldObjects, settings = {}) {
@@ -13,6 +15,12 @@ export class Player {
         this.gameMode = settings.gameMode || 'survival';
         this.backpack = null;
         this.backpackColor = null;
+        this.placedBlocks = [];
+        this.blockSize = 1;
+        this.minBlockSize = 0.5;
+        this.maxBlockSize = 2;
+        this.previewBlock = null;
+        this.isFloating = false;
 
         // Stats
         this.health = 100;
@@ -108,6 +116,9 @@ export class Player {
         this.reloadBuffer = null;
         this.smackBuffer = null;
         this.ughBuffer = null;
+        this.footstepsBuffer = null;
+        this._footstepsSource = null;
+        this._footstepsGain = null;
         this._hurtAccumulator = 0;
         this._hurtQueue = 0;
         this._hurtBeatTimer = null;
@@ -157,10 +168,36 @@ export class Player {
                         this.ughBuffer = audioBuffer;
                     })
                     .catch(e => console.warn('Error loading hurt SFX:', e));
+
+                // Load footsteps buffer
+                fetch(footStepsSfx)
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => this.audioCtx.decodeAudioData(arrayBuffer))
+                    .then(audioBuffer => {
+                        this.footstepsBuffer = audioBuffer;
+                    })
+                    .catch(e => console.warn('Error loading footsteps SFX:', e));
             }
         } catch (e) {
             console.warn('Web Audio API not supported:', e);
         }
+    }
+
+    placeBlock() {
+        if (!this.world) return;
+        const target = this.getBlockTarget();
+        const size = target.size;
+        const blockGeo = new THREE.BoxGeometry(size, size, size);
+        const blockMat = new THREE.MeshStandardMaterial({ color: 0xb5651d, roughness: 0.9 });
+        const block = new THREE.Mesh(blockGeo, blockMat);
+        block.position.copy(target.position);
+        block.castShadow = true;
+        block.receiveShadow = true;
+        block.userData = { type: 'block', size, gameId: this.world.generateID ? this.world.generateID() : undefined, gameName: 'Block' };
+
+        this.scene.add(block);
+        if (this.world.objects) this.world.objects.push(block);
+        this.placedBlocks.push(block);
     }
 
     createPlayerMesh() {
@@ -315,6 +352,15 @@ export class Player {
         this.rightArmPivot.add(dmr);
         this.weaponModels['DMR'] = dmr;
 
+        // Preview block (Studio mode)
+        const previewGeo = new THREE.BoxGeometry(this.blockSize, this.blockSize, this.blockSize);
+        const previewMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, transparent: true, opacity: 0.35, wireframe: true });
+        this.previewBlock = new THREE.Mesh(previewGeo, previewMat);
+        this.previewBlock.visible = this.gameMode === 'studio';
+        this.previewBlock.castShadow = false;
+        this.previewBlock.receiveShadow = false;
+        this.scene.add(this.previewBlock);
+
         // Legs - Use Pivots
         const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
         legGeo.translate(0, -0.4, 0); // Shift geometry down so origin is at hip
@@ -410,6 +456,35 @@ export class Player {
                 case 'Numpad4': this.switchWeapon(3); break;
                 case 'Numpad5': this.switchWeapon(4); break;
                 case 'Numpad6': this.switchWeapon(5); break;
+                case 'KeyB':
+                    if (this.gameMode === 'studio') {
+                        this.placeBlock();
+                    }
+                    break;
+                case 'KeyU':
+                    if (this.gameMode === 'studio') this.isFloating = true;
+                    break;
+                case 'Minus':
+                    if (this.gameMode === 'studio') this.adjustBlockSize(-0.1);
+                    break;
+                case 'Equal':
+                    if (this.gameMode === 'studio') this.adjustBlockSize(0.1);
+                    break;
+                case 'KeyM':
+                    if (this.gameMode === 'studio') this.moveLastBlock();
+                    break;
+                case 'KeyX':
+                    if (this.gameMode === 'studio') this.removeLastBlock();
+                    break;
+                case 'BracketLeft':
+                    if (this.gameMode === 'studio') this.adjustBlockSize(-0.1);
+                    break;
+                case 'BracketRight':
+                    if (this.gameMode === 'studio') this.adjustBlockSize(0.1);
+                    break;
+                case 'KeyM':
+                    if (this.gameMode === 'studio') this.moveLastBlock();
+                    break;
                 case 'KeyR': this.reload(); break;
                 case 'KeyC': 
                     // Toggle crouch
@@ -440,6 +515,9 @@ export class Player {
                 case 'ShiftRight':
                     // stop sprint input
                     this.isSprinting = false;
+                    break;
+                case 'KeyU':
+                    if (this.gameMode === 'studio') this.isFloating = false;
                     break;
             }
         };
@@ -677,7 +755,7 @@ export class Player {
         let bulletEnd = bulletStart.clone().add(raycaster.ray.direction.clone().multiplyScalar(1000));
         let hitSomething = false;
 
-        // Check world objects first (trees, rocks, houses)
+        // Check world objects first (trees, rocks, houses, blocks)
         if (this.worldObjects && this.worldObjects.length > 0) {
             const worldIntersects = raycaster.intersectObjects(this.worldObjects, true);
             if (worldIntersects.length > 0) {
@@ -835,9 +913,13 @@ export class Player {
         const canMove = (this.controls && this.controls.isLocked === true) || this.allowTouchMovement === true;
         if (canMove) {
             // Physics
-            this.velocity.x -= this.velocity.x * 10.0 * dt;
-            this.velocity.z -= this.velocity.z * 10.0 * dt;
+        this.velocity.x -= this.velocity.x * 10.0 * dt;
+        this.velocity.z -= this.velocity.z * 10.0 * dt;
+        if (!this.isFloating) {
             this.velocity.y -= this.gravity * dt;
+        } else {
+            this.velocity.y *= 0.9;
+        }
 
             this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
             this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
@@ -895,7 +977,17 @@ export class Player {
                 }
             }
 
-            this.mesh.position.y += this.velocity.y * dt;
+            // Floating vertical control
+            let verticalBoost = 0;
+            if (this.isFloating) {
+                const camDir = new THREE.Vector3();
+                this.camera.getWorldDirection(camDir);
+                const pitchY = camDir.y;
+                if (this.moveForward) verticalBoost += pitchY * this.speed * dt * 0.3;
+                if (this.moveBackward) verticalBoost -= pitchY * this.speed * dt * 0.3;
+            }
+
+            this.mesh.position.y += this.velocity.y * dt + verticalBoost;
 
             // Rotate mesh to face movement direction
             if (moveVec.length() > 0) {
@@ -909,19 +1001,37 @@ export class Player {
 
             this.mesh.position.y += this.velocity.y * dt;
 
-            if (this.mesh.position.y < 0) {
-                this.velocity.y = 0;
-                this.mesh.position.y = 0;
-                this.canJump = true;
-            }
-            // Clamp to terrain height if available
-            if (this.world && typeof this.world.getHeightAt === 'function') {
-                const groundY = this.world.getHeightAt(this.mesh.position.x, this.mesh.position.z);
-                if (this.mesh.position.y < groundY) {
-                    this.mesh.position.y = groundY;
+            if (!this.isFloating) {
+                if (this.mesh.position.y < 0) {
+                    this.velocity.y = 0;
+                    this.mesh.position.y = 0;
+                    this.canJump = true;
+                }
+                // Clamp to surface height (terrain + blocks)
+                const surfaceY = this.getSurfaceHeight(this.mesh.position.x, this.mesh.position.z);
+                if (this.mesh.position.y < surfaceY) {
+                    this.mesh.position.y = surfaceY;
                     this.velocity.y = 0;
                     this.canJump = true;
                 }
+            }
+            const onGround = (!this.isFloating) && (this.canJump || this.mesh.position.y <= 0.01);
+
+            // Footsteps loop when moving on ground
+            this.handleFootsteps(moving && onGround && !this.isDead);
+
+            // Update block preview for Studio
+            if (this.gameMode === 'studio') {
+                this.updateBlockPreview();
+            } else if (this.previewBlock) {
+                this.previewBlock.visible = false;
+            }
+
+            // Keep player inside map bounds
+            if (this.world && typeof this.world.halfMapSize === 'number') {
+                const limit = this.world.halfMapSize - 1;
+                this.mesh.position.x = Math.max(-limit, Math.min(limit, this.mesh.position.x));
+                this.mesh.position.z = Math.max(-limit, Math.min(limit, this.mesh.position.z));
             }
 
             // Track distance traveled
@@ -934,15 +1044,23 @@ export class Player {
             // Handle stamina drain/recovery
             if (this.isSprinting && !this.isCrouching && moving && this.stamina > 0) {
                 // Drain stamina per second while sprinting
-                const drain = 20 * dt; // 20 stamina per second
-                this.stamina = Math.max(0, this.stamina - drain);
-                if (this.stamina <= 0) {
-                    this.isSprinting = false; // stop sprinting when out
+                if (this.gameMode !== 'studio') {
+                    const drain = 20 * dt; // 20 stamina per second
+                    this.stamina = Math.max(0, this.stamina - drain);
+                    if (this.stamina <= 0) {
+                        this.isSprinting = false; // stop sprinting when out
+                    }
                 }
             } else {
                 // Regenerate stamina when not sprinting
-                const regen = 10 * dt; // 10 stamina per second
-                this.stamina = Math.min(100, this.stamina + regen);
+                if (this.gameMode !== 'studio') {
+                    const regen = 10 * dt; // 10 stamina per second
+                    this.stamina = Math.min(100, this.stamina + regen);
+                }
+            }
+
+            if (this.gameMode === 'studio') {
+                this.stamina = 100;
             }
 
             // Camera Follow
@@ -1245,13 +1363,140 @@ export class Player {
         }
     }
 
+    handleFootsteps(active) {
+        try {
+            if (!this.audioCtx || !this.footstepsBuffer) return;
+            if (active) {
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+                if (this._footstepsSource) {
+                    const rate = this.isSprinting ? 1.4 : (this.isCrouching ? 0.8 : 1.0);
+                    this._footstepsSource.playbackRate.value = rate;
+                    return;
+                }
+                const src = this.audioCtx.createBufferSource();
+                src.buffer = this.footstepsBuffer;
+                src.loop = true;
+                src.playbackRate.value = this.isSprinting ? 1.4 : (this.isCrouching ? 0.8 : 1.0);
+                const gain = this.audioCtx.createGain();
+                gain.gain.value = this.sfxVolume * 0.35;
+                src.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                src.start(0);
+                this._footstepsSource = src;
+                this._footstepsGain = gain;
+                src.onended = () => {
+                    this._footstepsSource = null;
+                    this._footstepsGain = null;
+                };
+            } else {
+                if (this._footstepsSource) {
+                    try { this._footstepsSource.stop(); } catch (e) {}
+                    this._footstepsSource.disconnect();
+                    if (this._footstepsGain) this._footstepsGain.disconnect();
+                    this._footstepsSource = null;
+                    this._footstepsGain = null;
+                }
+            }
+        } catch (e) {
+            console.warn('handleFootsteps error:', e);
+        }
+    }
+
 
     get position() {
         return this.mesh.position;
     }
 
+    getSurfaceHeight(x, z) {
+        let surface = (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) : 0;
+        if (this.world && this.world.objects && this.world.objects.length > 0) {
+            this.world.objects.forEach(obj => {
+                if (obj.userData && obj.userData.type === 'block') {
+                    const size = obj.userData.size || this.blockSize;
+                    if (Math.abs(obj.position.x - x) < size * 0.6 && Math.abs(obj.position.z - z) < size * 0.6) {
+                        const top = obj.position.y + size / 2;
+                        if (top > surface) surface = top;
+                    }
+                }
+            });
+        }
+        return surface;
+    }
+
+    adjustBlockSize(delta) {
+        const next = Math.max(this.minBlockSize, Math.min(this.maxBlockSize, this.blockSize + delta));
+        this.blockSize = next;
+        console.log('Block size:', this.blockSize.toFixed(2));
+    }
+
+    moveLastBlock() {
+        if (!this.placedBlocks.length) return;
+        const block = this.placedBlocks[this.placedBlocks.length - 1];
+        if (!block) return;
+
+        // Position in front of player
+        const target = this.getBlockTarget(block);
+        block.position.set(target.position.x, target.position.y, target.position.z);
+    }
+
+    getBlockTarget(existingBlock = null) {
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+        const size = existingBlock && existingBlock.userData && existingBlock.userData.size ? existingBlock.userData.size : this.blockSize;
+
+        const pos = this.mesh.position.clone().add(forward.multiplyScalar(2));
+        pos.x = Math.round(pos.x);
+        pos.z = Math.round(pos.z);
+
+        if (this.world && typeof this.world.halfMapSize === 'number') {
+            const limit = this.world.halfMapSize - 1;
+            pos.x = Math.max(-limit, Math.min(limit, pos.x));
+            pos.z = Math.max(-limit, Math.min(limit, pos.z));
+        }
+
+        let baseY = this.world.getHeightAt ? this.world.getHeightAt(pos.x, pos.z) : 0;
+        const existingBlocks = (this.world.objects || []).filter(obj => obj.userData && obj.userData.type === 'block' && obj !== existingBlock);
+        const atSameXZ = existingBlocks.filter(b => Math.abs(b.position.x - pos.x) < 0.1 && Math.abs(b.position.z - pos.z) < 0.1);
+        if (atSameXZ.length > 0) {
+            const top = Math.max(...atSameXZ.map(b => b.position.y + (b.userData && b.userData.size ? b.userData.size / 2 : size / 2)));
+            baseY = top;
+        }
+
+        const targetY = baseY + size / 2;
+        return { position: new THREE.Vector3(pos.x, targetY, pos.z), size };
+    }
+
+    updateBlockPreview() {
+        if (!this.previewBlock) return;
+        const target = this.getBlockTarget();
+        this.previewBlock.visible = true;
+        this.previewBlock.position.copy(target.position);
+        const scale = target.size / this.blockSize;
+        this.previewBlock.scale.set(scale, scale, scale);
+    }
+
+    removeLastBlock() {
+        if (!this.placedBlocks.length) return;
+        const block = this.placedBlocks.pop();
+        if (block && block.parent) {
+            block.parent.remove(block);
+        }
+        if (this.world && this.world.objects) {
+            this.world.objects = this.world.objects.filter(o => o !== block);
+        }
+        if (block && block.geometry) block.geometry.dispose();
+        if (block && block.material) {
+            if (Array.isArray(block.material)) block.material.forEach(m => m.dispose());
+            else block.material.dispose();
+        }
+    }
+
     takeDamage(amount) {
-        if (this.gameMode === 'matrix') {
+        if (this.gameMode === 'matrix' || this.gameMode === 'studio') {
             // No damage in Matrix mode
             return;
         }
@@ -1284,7 +1529,8 @@ export class Player {
     }
 
     die() {
-        if (this.gameMode === 'matrix') return;
+        if (this.gameMode === 'matrix' || this.gameMode === 'studio') return;
+        this.handleFootsteps(false);
         this.isDead = true;
         this.controls.unlock();
         this.mesh.rotation.x = -Math.PI / 2; // Fall over

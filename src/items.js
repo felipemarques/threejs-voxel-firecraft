@@ -26,64 +26,10 @@ export class ItemManager {
         this.realignItemsToGround();
     }
 
-    spawnParachuteLootNearPlayer(count = 5, radius = 10) {
-        if (!this.player) return;
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * radius;
-            let x = this.player.position.x + Math.cos(angle) * dist;
-            let z = this.player.position.z + Math.sin(angle) * dist;
-            ({ x, z } = this.getClampedCoord(x, z));
-            const y = (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) : 0;
-            this.spawnParachuteChest(x, y + 30, z);
-        }
-    }
-
-    spawnParachuteChest(x, y, z) {
-        const chest = new THREE.Group();
-        const box = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.6), new THREE.MeshStandardMaterial({ color: 0xf1c40f, roughness: 0.3, metalness: 0.5 }));
-        box.position.y = 0.4;
-        chest.add(box);
-        const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.2, 0.6), new THREE.MeshStandardMaterial({ color: 0xf5d76e, roughness: 0.3, metalness: 0.5 }));
-        lid.position.y = 0.9;
-        chest.add(lid);
-
-        const parachute = new THREE.Group();
-        const canopy = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.8, metalness: 0.1 }));
-        canopy.rotation.x = Math.PI;
-        canopy.position.y = 2.5;
-        parachute.add(canopy);
-        const stringsMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
-        for (let i = 0; i < 6; i++) {
-            const theta = (Math.PI * 2 * i) / 6;
-            const sx = Math.cos(theta) * 0.9;
-            const sz = Math.sin(theta) * 0.9;
-            const string = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2, 3), stringsMat);
-            string.position.set(sx, 1.5, sz);
-            parachute.add(string);
-        }
-
-        const drop = new THREE.Group();
-        drop.position.set(x, y, z);
-        drop.add(parachute);
-        chest.position.y = 0;
-        drop.add(chest);
-
-        drop.userData = {
-            type: 'parachute-drop',
-            targetY: (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) + 0.5 : 0.5,
-            landed: false,
-            yaw: Math.random() * Math.PI * 2,
-            phase: Math.random() * Math.PI * 2
-        };
-
-        this.scene.add(drop);
-        this.items.push(drop);
-    }
 
     getClampedCoord(x, z) {
         if (this.world && typeof this.world.halfMapSize === 'number') {
-            const limit = this.world.halfMapSize - 5;
+            const limit = this.world.halfMapSize - 1;
             return {
                 x: Math.max(-limit, Math.min(limit, x)),
                 z: Math.max(-limit, Math.min(limit, z))
@@ -93,6 +39,8 @@ export class ItemManager {
     }
 
     initLoot() {
+        // Matrix/Studio mode: no auto-loot here (loadout/spawns handled elsewhere)
+        if (this.settings.gameMode === 'matrix' || this.settings.gameMode === 'studio') return;
         if (this.settings.skipLoot) return;
         // Create some random chests/items
         for (let i = 0; i < 24; i++) {
@@ -118,11 +66,6 @@ export class ItemManager {
             ({ x, z } = this.getClampedCoord(x, z));
             const color = backpackColors[i % backpackColors.length];
             this.spawnBackpack(x, z, color);
-        }
-
-        // Matrix mode: parachute drops near player for testing
-        if (this.settings.gameMode === 'matrix') {
-            this.spawnParachuteLootNearPlayer(6, 12);
         }
     }
 
@@ -337,21 +280,6 @@ export class ItemManager {
             if (dist < 3) {
                 nearbyItem = item;
                 break;
-            }
-
-            // Animate parachute drops
-            if (item.userData && item.userData.type === 'parachute-drop' && !item.userData.landed) {
-                const targetY = item.userData.targetY || 0.5;
-                item.userData.phase += 0.05;
-                item.position.y = Math.max(targetY, item.position.y - 0.2);
-                const sway = Math.sin(item.userData.phase) * 0.2;
-                item.rotation.y += 0.01;
-                item.position.x += sway * 0.01;
-                item.position.z += Math.cos(item.userData.phase) * 0.01;
-                if (item.position.y <= targetY + 0.01) {
-                    item.position.y = targetY;
-                    item.userData.landed = true;
-                }
             }
         }
 

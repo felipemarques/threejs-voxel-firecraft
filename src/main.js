@@ -98,6 +98,8 @@ class Game {
         const cameraSelect = document.getElementById('setting-camera');
         const touchCheckbox = document.getElementById('setting-touch-controls');
         const gameModeSelect = document.getElementById('setting-game-mode');
+        const quitBtn = document.getElementById('quit-btn');
+        const floatBtn = document.getElementById('float-btn');
         
         const enemiesVal = document.getElementById('enemy-count-val');
         const stormVal = document.getElementById('storm-time-val');
@@ -183,6 +185,17 @@ class Game {
             }
         };
 
+        if (quitBtn) {
+            quitBtn.onclick = () => {
+                try {
+                    localStorage.removeItem('voxel-fortnite-settings');
+                } catch (e) {}
+                location.reload();
+            };
+        }
+
+        if (floatBtn) floatBtn.classList.add('hidden');
+
         // Volume slider live update
         if (volumeSlider) {
             volumeSlider.oninput = () => {
@@ -222,7 +235,7 @@ class Game {
         // Components
         // 1. Player (initially without world objects)
         const effectiveSettings = { ...settings };
-        if (effectiveSettings.gameMode === 'matrix') {
+        if (effectiveSettings.gameMode === 'matrix' || effectiveSettings.gameMode === 'studio') {
             effectiveSettings.enemyCount = 0;
             effectiveSettings.skipLoot = true;
         }
@@ -251,6 +264,27 @@ class Game {
         
         // Give player reference to enemies for shooting
         this.player.setEnemyManager(this.enemyManager);
+
+        // Setup float toggle for Studio
+        const floatBtn = document.getElementById('float-btn');
+        if (floatBtn) {
+            if (effectiveSettings.gameMode === 'studio') {
+                floatBtn.classList.remove('hidden');
+                floatBtn.innerText = this.player.isFloating ? 'FLOAT ON' : 'FLOAT OFF';
+                floatBtn.onclick = () => {
+                    this.player.isFloating = !this.player.isFloating;
+                    if (!this.player.isFloating) {
+                        // snap to ground when turning off
+                        const y = this.player.getSurfaceHeight(this.player.position.x, this.player.position.z);
+                        this.player.mesh.position.y = y;
+                        this.player.velocity.y = 0;
+                    }
+                    floatBtn.innerText = this.player.isFloating ? 'FLOAT ON' : 'FLOAT OFF';
+                };
+            } else {
+                floatBtn.classList.add('hidden');
+            }
+        }
 
         // Event Listeners
         window.addEventListener('resize', () => this.onWindowResize(), false);
@@ -456,8 +490,8 @@ class Game {
 
             // Check Victory
             try {
-                const isMatrix = this.player && this.player.gameMode === 'matrix';
-                if (!isMatrix && this.enemyManager.enemies.length === 0 && !this.player.isDead && !this.victoryShown) {
+                const noEnemiesMode = this.player && (this.player.gameMode === 'matrix' || this.player.gameMode === 'studio');
+                if (!noEnemiesMode && this.enemyManager.enemies.length === 0 && !this.player.isDead && !this.victoryShown) {
                     this.victoryShown = true; // Prevent multiple calls
                     this.hud.showVictory();
                     this.player.controls.unlock();

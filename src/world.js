@@ -32,10 +32,12 @@ export class World {
             this.createArenaEnvironment();
         } else if (this.gameMode === 'matrix') {
             this.createMatrixEnvironment();
+        } else if (this.gameMode === 'studio') {
+            this.createStudioEnvironment();
         } else {
             this.createEnvironment();
         }
-        if (this.gameMode !== 'matrix') {
+        if (this.gameMode !== 'matrix' && this.gameMode !== 'studio') {
             this.createStormVisuals();
         }
     }
@@ -315,6 +317,18 @@ export class World {
         this.scene.add(rightTree);
         this.objects.push(leftTree);
         this.objects.push(rightTree);
+    }
+
+    createStudioEnvironment() {
+        // Flat ground for building
+        const groundGeo = new THREE.PlaneGeometry(this.mapSize, this.mapSize, 128, 128);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x9cb27c, roughness: 0.9 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        ground.userData = { gameId: this.generateID(), gameName: 'Ground' };
+        this.scene.add(ground);
+        this.objects.push(ground);
     }
 
     generateID() {
@@ -911,7 +925,7 @@ export class World {
     }
 
     update(dt, playerPos) {
-        if (this.gameMode === 'matrix') {
+        if (this.gameMode === 'matrix' || this.gameMode === 'studio') {
             return { inStorm: false };
         }
         // Shrink storm
