@@ -136,10 +136,12 @@ export class Player {
         this.isInVehicle = false;
         this.currentVehicle = null;
         this.vehicleSpeed = 0;
-        this.vehicleMaxSpeed = 30;
-        this.vehicleAccel = 30;
-        this.vehicleTurnSpeed = 1.6;
-        this.vehicleFriction = 6;
+        this.vehicleBaseMaxSpeed = 42;
+        this.vehicleBoostMax = 30; // extra speed gained by sustained acceleration
+        this.vehicleAccel = 45;
+        this.vehicleTurnSpeed = 1.8;
+        this.vehicleFriction = 3.5;
+        this.vehicleAccelHold = 0; // ramps up as you keep accelerating
         this.vehiclePromptEl = document.getElementById('interaction-prompt');
         this.nearVehicle = null;
         
@@ -1204,6 +1206,7 @@ export class Player {
     enterVehicle(vehicle) {
         if (!vehicle || this.isInVehicle) return false;
         this.isInVehicle = true;
+        this.vehicleAccelHold = 0;
         this.currentVehicle = vehicle;
         this.vehicleSpeed = 0;
         this.mesh.visible = false;
@@ -1221,6 +1224,13 @@ export class Player {
         const exitOffset = new THREE.Vector3(-1.5, 0, -2).applyEuler(vehicle.rotation);
         const exitPos = vehicle.position.clone().add(exitOffset);
         this.mesh.position.copy(exitPos);
+        // Drop the player exactly onto the surface height to prevent floating
+        const surfaceY = (typeof this.getSurfaceHeight === 'function')
+            ? this.getSurfaceHeight(exitPos.x, exitPos.z)
+            : (this.world && typeof this.world.getHeightAt === 'function' ? this.world.getHeightAt(exitPos.x, exitPos.z) : exitPos.y);
+        this.mesh.position.y = surfaceY;
+        // Reset vertical velocity so player doesn't drift
+        this.velocity.set(0, 0, 0);
         this.mesh.visible = true;
         this.isInVehicle = false;
         this.currentVehicle = null;
@@ -1243,8 +1253,14 @@ export class Player {
         if (this.moveForward) accelInput += 1;
         if (this.moveBackward) accelInput -= 1;
         this.vehicleSpeed += accelInput * this.vehicleAccel * dt;
-        const maxFwd = this.vehicleMaxSpeed;
-        const maxBack = this.vehicleMaxSpeed * 0.5;
+        // Ramp up max speed while holding forward
+        if (this.moveForward && accelInput > 0) {
+            this.vehicleAccelHold = Math.min(1, this.vehicleAccelHold + dt * 0.8);
+        } else {
+            this.vehicleAccelHold = Math.max(0, this.vehicleAccelHold - dt * 0.6);
+        }
+        const maxFwd = this.vehicleBaseMaxSpeed + this.vehicleBoostMax * this.vehicleAccelHold;
+        const maxBack = this.vehicleBaseMaxSpeed * 0.5;
         this.vehicleSpeed = Math.min(maxFwd, Math.max(-maxBack, this.vehicleSpeed));
         this.vehicleSpeed *= Math.max(0, 1 - this.vehicleFriction * dt);
 
@@ -1253,11 +1269,18 @@ export class Player {
         if (this.moveRight) vehicle.rotation.y -= this.vehicleTurnSpeed * dt * turnDir;
 
         const forward = new THREE.Vector3(0, 0, -1).applyEuler(vehicle.rotation);
-        vehicle.position.addScaledVector(forward, this.vehicleSpeed * dt);
+        const desired = vehicle.position.clone().addScaledVector(forward, this.vehicleSpeed * dt);
+
+        // Basic collision against world objects (treat as spheres)
+        if (this.checkVehicleCollision(desired)) {
+            this.vehicleSpeed *= 0.2; // bounce/slow on impact
+        } else {
+            vehicle.position.copy(desired);
+        }
 
         if (this.world && typeof this.world.getHeightAt === 'function') {
             const groundY = this.world.getHeightAt(vehicle.position.x, vehicle.position.z);
-            vehicle.position.y = groundY + 0.9;
+            vehicle.position.y = groundY + 0.4;
         }
 
         if (this.world && typeof this.world.halfMapSize === 'number') {
@@ -1293,6 +1316,32 @@ export class Player {
         const targetCamPos = vehicle.position.clone().add(camOffset);
         this.camera.position.lerp(targetCamPos, 0.15);
         this.camera.lookAt(vehicle.position);
+    }
+
+    checkVehicleCollision(targetPos) {
+        if (!this.worldObjects) return false;
+        const radius = 2.0;
+        for (let i = 0; i < this.worldObjects.length; i++) {
+            const obj = this.worldObjects[i];
+            if (!obj) continue;
+            const ud = obj.userData || {};
+            if (ud.type === 'vehicle') continue; // ignore self/other vehicles for now
+            if (ud.gameName === 'Ground' || ud.type === 'ground') continue; // allow driving over ground plane
+
+            const objPos = obj.position || (obj.getWorldPosition ? obj.getWorldPosition(new THREE.Vector3()) : null);
+            if (!objPos) continue;
+            const dist = objPos.distanceTo(targetPos);
+            let objRadius = 1.5;
+            if (obj.geometry && obj.geometry.boundingSphere) {
+                objRadius = obj.geometry.boundingSphere.radius || objRadius;
+            } else if (ud && ud.size === 'large') {
+                objRadius = 5;
+            }
+            if (dist < radius + objRadius) {
+                return true;
+            }
+        }
+        return false;
     }
 
     updateAnimations(dt) {
