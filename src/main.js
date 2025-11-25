@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import bgMusic from './assets/background-music-by-suno.ogg';
-import { World } from './world.js';
+import { World, DEFAULT_MAP_SIZE } from './world.js';
 import { Player } from './player.js';
 import { HUD } from './hud.js';
 import { EnemyManager } from './enemies.js';
@@ -92,12 +92,24 @@ class Game {
         this.setupMenu();
     }
 
+    updateDebugToggleVisibility(enabled) {
+        const btn = document.getElementById('debug-toggle-btn');
+        if (!btn) return;
+        btn.classList.toggle('hidden', !enabled);
+        if (!enabled && window.debugOverlay && typeof window.debugOverlay.hide === 'function') {
+            try { window.debugOverlay.hide(); } catch (e) {}
+            try { localStorage.removeItem('showDebugOverlay'); } catch (e) {}
+        }
+    }
+
     setupMenu() {
         const menu = document.getElementById('main-menu');
         const playBtn = document.getElementById('play-btn');
         const diffSelect = document.getElementById('setting-difficulty');
         const enemiesInput = document.getElementById('setting-enemies');
         const stormInput = document.getElementById('setting-storm');
+        const mapSizeInput = document.getElementById('setting-map-size');
+        const mapSizeVal = document.getElementById('map-size-val');
         const debugCheckbox = document.getElementById('setting-debug');
         const showIdsCheckbox = document.getElementById('setting-show-ids');
         const minimapCheckbox = document.getElementById('setting-minimap');
@@ -121,6 +133,11 @@ class Game {
             stormInput.value = s.stormTime;
             enemiesVal.innerText = s.enemyCount;
             stormVal.innerText = s.stormTime;
+            if (mapSizeInput && mapSizeVal) {
+                const ms = s.mapSize || DEFAULT_MAP_SIZE;
+                mapSizeInput.value = ms;
+                mapSizeVal.innerText = ms;
+            }
             if (s.debugMode) debugCheckbox.checked = true;
             if (s.showRenderedIds && showIdsCheckbox) showIdsCheckbox.checked = true;
             if (minimapCheckbox) minimapCheckbox.checked = s.showMinimap !== false;
@@ -138,12 +155,16 @@ class Game {
         // Update labels
         enemiesInput.oninput = () => enemiesVal.innerText = enemiesInput.value;
         stormInput.oninput = () => stormVal.innerText = stormInput.value;
+        if (mapSizeInput && mapSizeVal) {
+            mapSizeInput.oninput = () => mapSizeVal.innerText = mapSizeInput.value;
+        }
 
         playBtn.onclick = () => {
             const settings = {
                 difficulty: diffSelect.value,
                 enemyCount: parseInt(enemiesInput.value),
                 stormTime: parseInt(stormInput.value),
+                mapSize: mapSizeInput ? parseInt(mapSizeInput.value) : DEFAULT_MAP_SIZE,
                 debugMode: debugCheckbox.checked,
                 showRenderedIds: showIdsCheckbox ? showIdsCheckbox.checked : false,
                 showMinimap: minimapCheckbox ? minimapCheckbox.checked : true,
@@ -156,6 +177,7 @@ class Game {
             
             // Save Settings
             localStorage.setItem('voxel-firecraft-settings', JSON.stringify(settings));
+            this.updateDebugToggleVisibility(settings.debugMode);
             
             // Hide Menu
             menu.style.display = 'none';
@@ -274,6 +296,8 @@ class Game {
         this.player.setEnemyManager(this.enemyManager);
         // Enable click-to-identify in arcade/survival styles
         this.setupObjectInspector();
+        // Hide DBG button when debug mode is off
+        this.updateDebugToggleVisibility(!!settings.debugMode);
 
         // Setup float toggle for Studio
         const floatBtn = document.getElementById('float-btn');

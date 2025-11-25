@@ -131,6 +131,17 @@ export class Player {
         // Crouch state
         this.isCrouching = false;
         this.crouchHeight = 0.8; // Height multiplier when crouching
+
+        // Vehicle state
+        this.isInVehicle = false;
+        this.currentVehicle = null;
+        this.vehicleSpeed = 0;
+        this.vehicleMaxSpeed = 30;
+        this.vehicleAccel = 30;
+        this.vehicleTurnSpeed = 1.6;
+        this.vehicleFriction = 6;
+        this.vehiclePromptEl = document.getElementById('interaction-prompt');
+        this.nearVehicle = null;
         
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -503,6 +514,19 @@ export class Player {
                     if (!this.isCrouching) this.isSprinting = true;
                     break;
                 case 'KeyV': this.toggleCameraMode(); break; // Toggle camera view
+                case 'KeyE':
+                    // Enter/Exit vehicles before other interactions
+                    if (this.isInVehicle) {
+                        this.exitVehicle();
+                        return;
+                    } else {
+                        const nearby = this.findNearbyVehicle();
+                        if (nearby) {
+                            this.enterVehicle(nearby);
+                            return;
+                        }
+                    }
+                    break;
             }
 
         };
@@ -918,6 +942,15 @@ export class Player {
     update(dt) {
         if (this.isDead) return;
 
+        // Vehicle prompt logic (works even without pointer lock)
+        this.updateVehiclePrompt();
+
+        // Driving branch
+        if (this.isInVehicle) {
+            this.updateVehicleDrive(dt);
+            return;
+        }
+
         // Allow updates when PointerLock is active OR when touch controls requested movement
         const canMove = (this.controls && this.controls.isLocked === true) || this.allowTouchMovement === true;
         if (canMove) {
@@ -1130,6 +1163,136 @@ export class Player {
             
             this.updateAnimations(dt);
         }
+    }
+
+    findNearbyVehicle() {
+        if (!this.worldObjects || this.gameMode === 'studio') return null;
+        let closest = null;
+        let closestDist = 4; // meters
+        this.worldObjects.forEach(obj => {
+            if (!obj || !obj.userData || obj.userData.type !== 'vehicle') return;
+            const dist = obj.position.distanceTo(this.mesh.position);
+            if (dist < closestDist) {
+                closest = obj;
+                closestDist = dist;
+            }
+        });
+        return closest;
+    }
+
+    updateVehiclePrompt() {
+        const el = this.vehiclePromptEl;
+        if (!el) return;
+        if (this.isInVehicle) {
+            el.innerText = 'Press E to exit vehicle';
+            el.dataset.vehiclePrompt = '1';
+            el.classList.remove('hidden');
+            return;
+        }
+        const nearby = this.findNearbyVehicle();
+        this.nearVehicle = nearby;
+        if (nearby) {
+            el.innerText = 'Press E to drive vehicle';
+            el.dataset.vehiclePrompt = '1';
+            el.classList.remove('hidden');
+        } else if (el.dataset.vehiclePrompt === '1') {
+            el.classList.add('hidden');
+            delete el.dataset.vehiclePrompt;
+        }
+    }
+
+    enterVehicle(vehicle) {
+        if (!vehicle || this.isInVehicle) return false;
+        this.isInVehicle = true;
+        this.currentVehicle = vehicle;
+        this.vehicleSpeed = 0;
+        this.mesh.visible = false;
+        this.velocity.set(0, 0, 0);
+        this.mesh.position.copy(vehicle.position);
+        return true;
+    }
+
+    exitVehicle() {
+        if (!this.currentVehicle) {
+            this.isInVehicle = false;
+            return;
+        }
+        const vehicle = this.currentVehicle;
+        const exitOffset = new THREE.Vector3(-1.5, 0, -2).applyEuler(vehicle.rotation);
+        const exitPos = vehicle.position.clone().add(exitOffset);
+        this.mesh.position.copy(exitPos);
+        this.mesh.visible = true;
+        this.isInVehicle = false;
+        this.currentVehicle = null;
+        this.vehicleSpeed = 0;
+        this.canJump = true;
+        if (this.vehiclePromptEl && this.vehiclePromptEl.dataset.vehiclePrompt === '1') {
+            this.vehiclePromptEl.classList.add('hidden');
+            delete this.vehiclePromptEl.dataset.vehiclePrompt;
+        }
+    }
+
+    updateVehicleDrive(dt) {
+        const vehicle = this.currentVehicle;
+        if (!vehicle) {
+            this.isInVehicle = false;
+            return;
+        }
+
+        let accelInput = 0;
+        if (this.moveForward) accelInput += 1;
+        if (this.moveBackward) accelInput -= 1;
+        this.vehicleSpeed += accelInput * this.vehicleAccel * dt;
+        const maxFwd = this.vehicleMaxSpeed;
+        const maxBack = this.vehicleMaxSpeed * 0.5;
+        this.vehicleSpeed = Math.min(maxFwd, Math.max(-maxBack, this.vehicleSpeed));
+        this.vehicleSpeed *= Math.max(0, 1 - this.vehicleFriction * dt);
+
+        const turnDir = (this.vehicleSpeed >= 0 ? 1 : -1);
+        if (this.moveLeft) vehicle.rotation.y += this.vehicleTurnSpeed * dt * turnDir;
+        if (this.moveRight) vehicle.rotation.y -= this.vehicleTurnSpeed * dt * turnDir;
+
+        const forward = new THREE.Vector3(0, 0, -1).applyEuler(vehicle.rotation);
+        vehicle.position.addScaledVector(forward, this.vehicleSpeed * dt);
+
+        if (this.world && typeof this.world.getHeightAt === 'function') {
+            const groundY = this.world.getHeightAt(vehicle.position.x, vehicle.position.z);
+            vehicle.position.y = groundY + 0.9;
+        }
+
+        if (this.world && typeof this.world.halfMapSize === 'number') {
+            const limit = this.world.halfMapSize - 1;
+            vehicle.position.x = Math.max(-limit, Math.min(limit, vehicle.position.x));
+            vehicle.position.z = Math.max(-limit, Math.min(limit, vehicle.position.z));
+        }
+
+        if (this.previousPosition.length() > 0) {
+            const dist = vehicle.position.distanceTo(this.previousPosition);
+            this.distanceTraveled += dist;
+        }
+        this.mesh.position.copy(vehicle.position);
+        this.previousPosition.copy(vehicle.position);
+
+        if (this.enemyManager && Array.isArray(this.enemyManager.enemies)) {
+            const now = performance.now();
+            this.enemyManager.enemies.forEach(enemy => {
+                if (!enemy || !enemy.position) return;
+                const dist = enemy.position.distanceTo(vehicle.position);
+                if (dist < 2.4) {
+                    if (!enemy.userData) enemy.userData = {};
+                    const lastHit = enemy.userData.lastRunOver || 0;
+                    if (now - lastHit > 400) {
+                        enemy.userData.lastRunOver = now;
+                        try { enemy.takeDamage(999); } catch (e) {}
+                    }
+                }
+            });
+        }
+
+        const camOffset = new THREE.Vector3(0, 2, 6).applyEuler(new THREE.Euler(0, vehicle.rotation.y, 0));
+        const targetCamPos = vehicle.position.clone().add(camOffset);
+        this.camera.position.lerp(targetCamPos, 0.15);
+        this.camera.lookAt(vehicle.position);
     }
 
     updateAnimations(dt) {
