@@ -1557,6 +1557,14 @@ export class Player {
     updateVehicleHUD(show) {
         if (!this.vehicleHud || !this.vehicleHud.root) return;
         const root = this.vehicleHud.root;
+        // Position HUD below the main dashboard
+        const dash = document.getElementById('dashboard');
+        if (dash) {
+            const rect = dash.getBoundingClientRect();
+            root.style.left = `${rect.left}px`;
+            root.style.top = `${rect.top + rect.height + 8}px`;
+            root.style.width = `${rect.width}px`;
+        }
         if (!show) {
             root.classList.add('hidden');
             return;

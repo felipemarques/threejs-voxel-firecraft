@@ -394,8 +394,9 @@ html {
 
 #vehicle-hud {
     position: absolute;
-    top: 210px; /* below player stats, above float */
+    top: 150px; /* stacked right under the main dashboard */
     left: 10px;
+    width: 210px;
     background: rgba(0, 0, 0, 0.7);
     padding: 10px 12px;
     border-radius: 10px;
@@ -444,6 +445,25 @@ html {
 
 #vehicle-fuel-text {
     font-weight: 700;
+}
+
+#ui-layer .dashboardContainer {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 300px;
+    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 210;
+}
+
+@media (max-width: 640px) {
+    #ui-layer .dashboardContainer {
+        width: 90vw;
+        overflow-x: auto;
+    }
 }
 
 .palette-submenu {

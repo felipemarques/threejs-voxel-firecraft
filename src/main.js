@@ -73,6 +73,8 @@ class Game {
         this._pickRaycaster = new THREE.Raycaster();
         this._objectClickHandler = null;
         this._objectClickTarget = null;
+        this._longPressTimer = null;
+        this._boundUnlockHandler = null;
         // Pause state
         this.isPaused = false;
         this.pauseMenu = document.getElementById('pause-menu');
@@ -98,6 +100,7 @@ class Game {
 
         // Setup Menu
         this.setupMenu();
+        this.setupLongPressMenu();
 
         // Soften pointer lock errors in environments that reject the request (e.g. ESC before completion)
         document.addEventListener('pointerlockerror', (ev) => {
@@ -245,6 +248,7 @@ class Game {
             
             // Hide Menu
             menu.style.display = 'none';
+            this.isPaused = false;
             // Start background music (user gesture) if enabled
             if (settings.musicEnabled !== false) {
                 this.playBackgroundMusic();
@@ -271,10 +275,12 @@ class Game {
                     this.hud.settings = settings;
                 }
                 this.setHotbarVisible(true);
+                this.refreshStudioPaletteVisibility();
             } else {
                 // Start new game
                 playBtn.innerText = 'PLAY GAME';
                 this.startGame(settings);
+                this.refreshStudioPaletteVisibility();
             }
 
             // Show hotkey hint in studio mode
@@ -307,6 +313,9 @@ class Game {
                 if (ev.target === hotkeyModal) this.toggleHotkeyModal(false);
             });
         }
+
+        // Ensure studio palette hidden until a studio game is running
+        this.refreshStudioPaletteVisibility();
 
         // Volume slider live update
         if (volumeSlider) {
@@ -386,6 +395,18 @@ class Game {
         this.setupObjectInspector();
         // Hide DBG button when debug mode is off
         this.updateDebugToggleVisibility(!!settings.debugMode);
+        // Pointer unlock should open pause menu immediately (avoids double ESC)
+        if (this.player && this.player.controls) {
+            const handler = () => {
+                if (this.isPaused) return;
+                this.showPauseMenu();
+            };
+            if (this._boundUnlockHandler) {
+                try { this.player.controls.removeEventListener('unlock', this._boundUnlockHandler); } catch (e) {}
+            }
+            this._boundUnlockHandler = handler;
+            this.player.controls.addEventListener('unlock', handler);
+        }
         // Show hotbar in-game
         this.setHotbarVisible(true);
 
@@ -452,6 +473,7 @@ class Game {
 
         // Studio palette
         this.setupStudioPalette(effectiveSettings);
+        this.refreshStudioPaletteVisibility();
 
         // Lock pointer immediately after Play click (desktop)
         if (!IS_MOBILE && this.player && this.player.controls && !this.player.controls.isLocked) {
@@ -461,6 +483,39 @@ class Game {
         }
 
         this.animate();
+    }
+
+    setupLongPressMenu() {
+        if (!IS_MOBILE) return;
+        const target = document.getElementById('ui-layer') || document.body;
+        if (!target) return;
+        const start = (ev) => {
+            try {
+                if (ev.touches && ev.touches.length > 1) return;
+                if (this._longPressTimer) clearTimeout(this._longPressTimer);
+                this._longPressTimer = setTimeout(() => {
+                    this._longPressTimer = null;
+                    this.showPauseMenu();
+                }, 800);
+            } catch (e) {}
+        };
+        const clear = () => {
+            if (this._longPressTimer) {
+                clearTimeout(this._longPressTimer);
+                this._longPressTimer = null;
+            }
+        };
+        target.addEventListener('touchstart', start, { passive: true });
+        target.addEventListener('touchend', clear);
+        target.addEventListener('touchcancel', clear);
+        target.addEventListener('touchmove', clear);
+    }
+
+    refreshStudioPaletteVisibility() {
+        const palette = document.getElementById('studio-palette');
+        if (!palette) return;
+        const show = this.player && this.player.gameMode === 'studio' && !this.isPaused;
+        palette.classList.toggle('hidden', !show);
     }
 
     setupStudioPalette(settings) {
@@ -484,25 +539,22 @@ class Game {
                 const action = btn.getAttribute('data-action');
                 if (action === 'resume') {
                     this.isPaused = false;
-                    if (this.player && this.player.controls) {
-                        this.player.controls.enabled = true;
-                    }
                     if (this.player && this.player.controls && !this.player.controls.isLocked) {
                         try { this.player.controls.lock(); } catch (e) {}
                     }
                     const menu = document.getElementById('main-menu');
                     if (menu) menu.style.display = 'none';
-                // Hide the palette so clicks go back to the game canvas
-                try { palette.classList.add('hidden'); } catch (e) {}
-                // Clear any pending studio placement so clicks won't place until ESC is pressed again
-                this.studioSelectedPrefab = null;
-                this.studioSelectedOptions = null;
-                this.toggleTouchLookArea(true);
-                if (this.player && this.player.studioSelectionHelper) {
-                    try { this.player.scene.remove(this.player.studioSelectionHelper); } catch (e) {}
-                    this.player.studioSelectionHelper = null;
-                }
-                if (this.bgAudio && this.bgAudio.paused) this.playBackgroundMusic();
+                    this.setHotbarVisible(true);
+                    this.refreshStudioPaletteVisibility();
+                    // Clear any pending studio placement so clicks won't place until reselected
+                    this.studioSelectedPrefab = null;
+                    this.studioSelectedOptions = null;
+                    this.toggleTouchLookArea(true);
+                    if (this.player && this.player.studioSelectionHelper) {
+                        try { this.player.scene.remove(this.player.studioSelectionHelper); } catch (e) {}
+                        this.player.studioSelectionHelper = null;
+                    }
+                    if (this.bgAudio && this.bgAudio.paused) this.playBackgroundMusic();
                     return;
                 } else if (action === 'spawn-npc') {
                     if (this.enemyManager && typeof this.enemyManager.spawnEnemy === 'function') {
@@ -774,11 +826,8 @@ class Game {
         // Hide hotbar when menu is open
         this.setHotbarVisible(false);
 
-        // Reopen studio palette when pausing in studio mode so the user must press ESC to re-arm building
-        if (this.player && this.player.gameMode === 'studio') {
-            const palette = document.getElementById('studio-palette');
-            if (palette) palette.classList.remove('hidden');
-        }
+        // Hide studio palette when menu is open
+        this.refreshStudioPaletteVisibility();
     }
 
     // Background music control
