@@ -587,13 +587,20 @@ export class Player {
                     break;
                 case 'ShiftLeft':
                 case 'ShiftRight':
-                    // start sprint input (turbo in vehicle)
-                    if (!this.isCrouching) {
-                        if (this.isInVehicle) {
-                            this.vehicleTurbo = true;
-                        } else {
-                            this.isSprinting = true;
-                        }
+                    // start sprint input (on-foot only)
+                    if (!this.isCrouching) this.isSprinting = true;
+                    break;
+                case 'Space':
+                    // Jump only (turbo moved to N)
+                    if (!this.isInVehicle && this.canJump === true) {
+                        this.velocity.y += this.jumpHeight;
+                        this.canJump = false;
+                    }
+                    break;
+                case 'KeyN':
+                    // Turbo toggle for vehicles
+                    if (this.isInVehicle) {
+                        this.vehicleTurbo = true;
                     }
                     break;
                 case 'KeyV': this.toggleCameraMode(); break; // Toggle camera view
@@ -628,6 +635,11 @@ export class Player {
                 case 'ShiftRight':
                     // stop sprint input
                     this.isSprinting = false;
+                    break;
+                case 'Space':
+                    break;
+                case 'KeyN':
+                    // stop turbo when releasing N in vehicle
                     this.vehicleTurbo = false;
                     break;
             }

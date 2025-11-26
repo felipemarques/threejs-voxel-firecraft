@@ -31,8 +31,20 @@ export class HUD {
         this.dropCount = document.getElementById('drop-count');
         this.distanceTraveled = document.getElementById('distance-traveled');
         this.playerSpeed = document.getElementById('player-speed');
-        this.memoryUsage = document.getElementById('memory-usage');
+        this.memoryUsage = document.getElementById('memory-usage'); // legacy, optional
         this.targetInspect = document.getElementById('target-inspect');
+        // Perf dashboard elements
+        this.perfFrame = document.getElementById('perf-frame');
+        this.perfCalls = document.getElementById('perf-calls');
+        this.perfTris = document.getElementById('perf-tris');
+        this.perfGeoms = document.getElementById('perf-geoms');
+        this.perfTextures = document.getElementById('perf-textures');
+        this.perfPrograms = document.getElementById('perf-programs');
+        this.perfObjects = document.getElementById('perf-objects');
+        this.perfMem = document.getElementById('perf-mem');
+        this.perfCpu = document.getElementById('perf-cpu');
+        this.perfGpu = document.getElementById('perf-gpu');
+        this._renderer = null;
 
         // Debug Elements
         this.debugInfo = document.getElementById('debug-info');
@@ -51,6 +63,7 @@ export class HUD {
         this.frames = 0; // Used for FPS calculation
         this.fps = 0;
         this.lastFpsTime = performance.now(); // For FPS calculation
+        this.lastFrameTime = performance.now();
 
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -167,10 +180,12 @@ export class HUD {
             this.frames = 0;
             this.lastFpsTime = now;
             
-            if (performance.memory) {
+            if (performance.memory && this.memoryUsage) {
                 this.memoryUsage.innerText = Math.round(performance.memory.usedJSHeapSize / 1048576);
             }
         }
+        const frameDeltaMs = now - this.lastFrameTime;
+        this.lastFrameTime = now;
 
         if (this.player.enemyManager) {
             this.enemyCount.innerText = this.player.enemyManager.enemies.length;
@@ -199,6 +214,31 @@ export class HUD {
                 speed = this.player.currentSpeed * 3.6;
             }
             this.playerSpeed.innerText = speed.toFixed(1);
+        }
+
+        // Performance dashboard
+        if (this._renderer) {
+            const info = this._renderer.info;
+            if (this.perfFrame) this.perfFrame.innerText = frameDeltaMs.toFixed(1);
+            if (this.perfCalls) this.perfCalls.innerText = info.render.calls;
+            if (this.perfTris) this.perfTris.innerText = info.render.triangles;
+            if (this.perfGeoms) this.perfGeoms.innerText = info.memory.geometries;
+            if (this.perfTextures) this.perfTextures.innerText = info.memory.textures;
+            if (this.perfPrograms) this.perfPrograms.innerText = info.programs ? info.programs.length : '0';
+
+            // Object count: world objects + items + enemies
+            let totalObjs = 0;
+            if (this.world && Array.isArray(this.world.objects)) totalObjs += this.world.objects.length;
+            const im = (typeof window !== 'undefined' && window.game && window.game.itemManager) ? window.game.itemManager : null;
+            if (im && Array.isArray(im.items)) totalObjs += im.items.length;
+            if (this.player.enemyManager && Array.isArray(this.player.enemyManager.enemies)) totalObjs += this.player.enemyManager.enemies.length;
+            if (this.perfObjects) this.perfObjects.innerText = totalObjs;
+
+            if (this.perfMem && performance.memory) {
+                this.perfMem.innerText = Math.round(performance.memory.usedJSHeapSize / 1048576);
+            }
+            if (this.perfCpu) this.perfCpu.innerText = 'N/A';
+            if (this.perfGpu) this.perfGpu.innerText = 'N/A';
         }
 
         // Stats
@@ -587,5 +627,43 @@ export class HUD {
         ctx.arc(px, pz, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+
+        // Player heading arrow
+        try {
+            const forward = new THREE.Vector3();
+            if (this.player && this.player.camera && this.player.camera.getWorldDirection) {
+                this.player.camera.getWorldDirection(forward);
+            }
+            forward.y = 0;
+            if (forward.lengthSq() < 0.0001 && this.player.mesh) {
+                forward.set(0, 0, -1).applyEuler(this.player.mesh.rotation);
+                forward.y = 0;
+            }
+            if (forward.lengthSq() > 0.0001) {
+                forward.normalize();
+                // Map to minimap orientation (x -> right, z -> up -> negative canvas Y)
+                const dx = forward.x;
+                const dy = -forward.z;
+                const angle = Math.atan2(dy, dx) + Math.PI / 2;
+                ctx.save();
+                ctx.translate(px, pz);
+                ctx.rotate(angle);
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.lineTo(6, 8);
+                ctx.lineTo(-6, 8);
+                ctx.closePath();
+                ctx.fillStyle = '#00d8ff';
+                ctx.strokeStyle = '#003f4f';
+                ctx.lineWidth = 2;
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+        } catch (e) {}
+    }
+
+    setRenderer(renderer) {
+        this._renderer = renderer;
     }
 }

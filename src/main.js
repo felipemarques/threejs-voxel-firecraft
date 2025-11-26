@@ -375,6 +375,9 @@ class Game {
         }
 
         this.hud = new HUD(this.player, this.world, settings);
+        if (this.hud && typeof this.hud.setRenderer === 'function') {
+            this.hud.setRenderer(this.renderer);
+        }
         this.enemyManager = new EnemyManager(this.scene, this.player, this.world, effectiveSettings);
         
         // Give player reference to enemies for shooting

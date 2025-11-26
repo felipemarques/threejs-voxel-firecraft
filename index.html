@@ -66,20 +66,33 @@
         <div id="interaction-prompt" class="hidden">Press E to interact</div>
 
         <!-- Dashboard -->
-        <div id="dashboard" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+    <div id="dashboard" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
             <div>FPS: <span id="fps-counter">0</span></div>
             <div>Enemies: <span id="enemy-count">0</span></div>
             <div>Killed: <span id="kill-count">0</span></div>
             <div>Drops: <span id="drop-count">0</span></div>
             <div>Distance: <span id="distance-traveled">0.00</span> km</div>
             <div>Speed: <span id="player-speed">0.0</span> km/h</div>
-            <div>Memory: <span id="memory-usage">0</span> MB</div>
             <div id="target-inspect">Target: ---</div>
             <div id="debug-info" style="display: none; color: #f1c40f; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;">
                 <div>Target: <span id="debug-target-name">None</span></div>
                 <div>ID: <span id="debug-target-id">---</span></div>
-            </div>
         </div>
+    </div>
+
+    <!-- Performance Dashboard -->
+    <div id="perf-dashboard" style="position: absolute; top: 10px; left: 240px; background: rgba(0,0,0,0.55); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; min-width: 180px;">
+        <div>Frame: <span id="perf-frame">0.0</span> ms</div>
+        <div>Calls: <span id="perf-calls">0</span></div>
+        <div>Tris: <span id="perf-tris">0</span></div>
+        <div>Geoms: <span id="perf-geoms">0</span></div>
+        <div>Textures: <span id="perf-textures">0</span></div>
+        <div>Programs: <span id="perf-programs">0</span></div>
+        <div>Objects: <span id="perf-objects">0</span></div>
+        <div>JS Heap: <span id="perf-mem">0</span> MB</div>
+        <div>CPU: <span id="perf-cpu">N/A</span></div>
+        <div>GPU: <span id="perf-gpu">N/A</span></div>
+    </div>
 
         <div id="debug-container" style="position:absolute; top:0; left:0; pointer-events:none;"></div>
 
