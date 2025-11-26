@@ -125,6 +125,31 @@ class Game {
         modal.setAttribute('aria-hidden', show ? 'false' : 'true');
     }
 
+    toggleTouchLookArea(show) {
+        try {
+            if (!this.touchControls) return;
+            if (show) {
+                if (!this.touchControls.lookArea) {
+                    this.touchControls.rebuildLookArea && this.touchControls.rebuildLookArea();
+                } else {
+                    this.touchControls.lookArea.style.display = '';
+                }
+            } else {
+                if (this.touchControls.destroyLookArea) {
+                    this.touchControls.destroyLookArea();
+                } else if (this.touchControls.lookArea) {
+                    this.touchControls.lookArea.style.display = 'none';
+                }
+            }
+        } catch (e) {}
+    }
+
+    setHotbarVisible(show) {
+        const hotbar = document.getElementById('hotbar');
+        if (!hotbar) return;
+        hotbar.style.display = show ? 'flex' : 'none';
+    }
+
     updateDebugToggleVisibility(enabled) {
         const btn = document.getElementById('debug-toggle-btn');
         if (!btn) return;
@@ -245,6 +270,7 @@ class Game {
                 if (this.hud) {
                     this.hud.settings = settings;
                 }
+                this.setHotbarVisible(true);
             } else {
                 // Start new game
                 playBtn.innerText = 'PLAY GAME';
@@ -315,6 +341,9 @@ class Game {
                 } catch (e) {}
             };
         }
+
+        // Hide hotbar while menu is open
+        this.setHotbarVisible(false);
     }
 
     startGame(settings) {
@@ -354,6 +383,8 @@ class Game {
         this.setupObjectInspector();
         // Hide DBG button when debug mode is off
         this.updateDebugToggleVisibility(!!settings.debugMode);
+        // Show hotbar in-game
+        this.setHotbarVisible(true);
 
         // Setup float toggle for Studio
         const floatBtn = document.getElementById('float-btn');
@@ -444,7 +475,8 @@ class Game {
         buttons.forEach(btn => {
             if (btn._boundStudio) return;
             btn._boundStudio = true;
-            btn.addEventListener('click', () => {
+            const handler = (ev) => {
+                if (ev && ev.stopPropagation) ev.stopPropagation();
                 if (!this.player || !this.world) return;
                 const action = btn.getAttribute('data-action');
                 if (action === 'resume') {
@@ -457,16 +489,17 @@ class Game {
                     }
                     const menu = document.getElementById('main-menu');
                     if (menu) menu.style.display = 'none';
-                    // Hide the palette so clicks go back to the game canvas
-                    try { palette.classList.add('hidden'); } catch (e) {}
-                    // Clear any pending studio placement so clicks won't place until ESC is pressed again
-                    this.studioSelectedPrefab = null;
-                    this.studioSelectedOptions = null;
-                    if (this.player && this.player.studioSelectionHelper) {
-                        try { this.player.scene.remove(this.player.studioSelectionHelper); } catch (e) {}
-                        this.player.studioSelectionHelper = null;
-                    }
-                    if (this.bgAudio && this.bgAudio.paused) this.playBackgroundMusic();
+                // Hide the palette so clicks go back to the game canvas
+                try { palette.classList.add('hidden'); } catch (e) {}
+                // Clear any pending studio placement so clicks won't place until ESC is pressed again
+                this.studioSelectedPrefab = null;
+                this.studioSelectedOptions = null;
+                this.toggleTouchLookArea(true);
+                if (this.player && this.player.studioSelectionHelper) {
+                    try { this.player.scene.remove(this.player.studioSelectionHelper); } catch (e) {}
+                    this.player.studioSelectionHelper = null;
+                }
+                if (this.bgAudio && this.bgAudio.paused) this.playBackgroundMusic();
                     return;
                 } else if (action === 'spawn-npc') {
                     if (this.enemyManager && typeof this.enemyManager.spawnEnemy === 'function') {
@@ -486,12 +519,18 @@ class Game {
                 // Mark active selection for click-to-place
                 this.studioSelectedPrefab = prefab;
                 this.studioSelectedOptions = vehicleType ? { variant: vehicleType } : (treeType ? { variant: treeType } : {});
+                // Hide look area so touches on the world are not intercepted
+                this.toggleTouchLookArea(false);
                 // Close any submenu
                 if (submenuTarget) {
                     const menu = document.getElementById(submenuTarget);
                     if (menu) menu.classList.add('hidden');
                 }
-            });
+            };
+            const safeHandler = (e) => { e && e.preventDefault && e.preventDefault(); handler(e); };
+            // Use pointerdown only to avoid double-fire on touch (click is redundant on touch devices)
+            btn.addEventListener('pointerdown', safeHandler);
+            btn.addEventListener('click', (e) => { e && e.preventDefault && e.preventDefault(); handler(e); });
         });
     }
 
@@ -503,6 +542,7 @@ class Game {
         if (this._objectClickHandler && this._objectClickTarget) {
             try {
                 this._objectClickTarget.removeEventListener('click', this._objectClickHandler);
+                this._objectClickTarget.removeEventListener('pointerdown', this._objectClickHandler);
             } catch (e) {}
         }
         this._objectClickTarget = canvas;
@@ -528,10 +568,26 @@ class Game {
                         break;
                     }
                 }
+                // Fallback: center ray if touch overlay blocked the click
+                if (!groundHit) {
+                    const centerRay = new THREE.Raycaster();
+                    centerRay.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+                    const centerHits = centerRay.intersectObjects(this.world.objects, true);
+                    for (const h of centerHits) {
+                        if (h.object && h.object.userData && h.object.userData.gameName === 'Ground') {
+                            groundHit = h;
+                            break;
+                        }
+                    }
+                }
                 if (groundHit && typeof this.world.spawnPrefab === 'function') {
                     const opts = this.studioSelectedOptions || {};
                     this.world.spawnPrefab(this.studioSelectedPrefab, groundHit.point.x, groundHit.point.z, opts);
                 }
+                // Clear selection and restore look area
+                this.studioSelectedPrefab = null;
+                this.studioSelectedOptions = null;
+                this.toggleTouchLookArea(true);
                 return;
             }
 
@@ -582,6 +638,7 @@ class Game {
         };
 
         canvas.addEventListener('click', this._objectClickHandler);
+        canvas.addEventListener('pointerdown', this._objectClickHandler);
     }
 
     initStudioPaletteDrag(palette) {
@@ -608,8 +665,10 @@ class Game {
                     palette.style.bottom = 'auto';
                     palette.style.position = 'fixed';
                     palette.style.width = `${rectCache.width}px`; // keep size while moving
-                    // lock height as well to prevent stretching
-                    palette.style.height = `${rectCache.height}px`;
+                    // lock min/max to avoid stretching on touch
+                    palette.style.minWidth = `${rectCache.width}px`;
+                    palette.style.maxWidth = `${rectCache.width}px`;
+                    // keep height auto to avoid stretching
                     palette.style.left = `${rectCache.left}px`;
                     palette.style.top = `${rectCache.top}px`;
                 }
@@ -638,7 +697,8 @@ class Game {
             startY = ev.clientY;
             dragging = false;
             handle._dragPointerId = ev.pointerId;
-            handle.setPointerCapture && handle.setPointerCapture(ev.pointerId);
+            // Some mobile browsers restrict setPointerCapture; wrap in try
+            try { handle.setPointerCapture(ev.pointerId); } catch (e) {}
             document.addEventListener('pointermove', onMove);
             document.addEventListener('pointerup', onUp);
         });
@@ -707,6 +767,9 @@ class Game {
                 playBtn.innerText = 'RESUME GAME';
             }
         }
+
+        // Hide hotbar when menu is open
+        this.setHotbarVisible(false);
 
         // Reopen studio palette when pausing in studio mode so the user must press ESC to re-arm building
         if (this.player && this.player.gameMode === 'studio') {

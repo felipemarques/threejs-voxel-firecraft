@@ -50,36 +50,6 @@
                 <span>Range</span><span id="vehicle-range">0.0</span><span>km</span>
             </div>
         </div>
-        <!-- Studio palette -->
-        <div id="studio-palette" class="hidden" aria-label="Studio Palette">
-            <div class="palette-title">STUDIO TOOLS</div>
-            <div class="palette-grid">
-                <button id="studio-resume-btn" data-action="resume">Resume & Lock</button>
-                <button data-prefab="house">House</button>
-                <button data-prefab="mansion">Mansion</button>
-                <button data-prefab="cabin">Cabin</button>
-                <button data-prefab="smallBuilding">Small Building</button>
-                <button data-prefab="plateau">Plateau</button>
-                <button data-prefab="rock">Rock</button>
-                <div class="palette-submenu">
-                    <button data-prefab="tree" data-submenu="tree-menu">Tree ▾</button>
-                    <div id="tree-menu" class="submenu hidden">
-                        <button data-prefab="tree" data-tree-type="Oak">Oak</button>
-                        <button data-prefab="tree" data-tree-type="Pine">Pine</button>
-                    </div>
-                </div>
-                <div class="palette-submenu">
-                    <button data-prefab="vehicle" data-submenu="vehicle-menu">Vehicle ▾</button>
-                    <div id="vehicle-menu" class="submenu hidden">
-                        <button data-prefab="vehicle" data-vehicle-type="car">Car</button>
-                        <button data-prefab="vehicle" data-vehicle-type="truck">Truck</button>
-                    </div>
-                </div>
-                <button data-prefab="crate">Crate</button>
-                <button data-action="spawn-npc">Add NPC</button>
-            </div>
-        </div>
-
         <!-- Storm Timer -->
         <div id="storm-timer">Storm closes in: <span id="timer-value">00:30</span></div>
         <!-- Minimap -->
@@ -95,7 +65,7 @@
         <!-- Interaction Prompt -->
         <div id="interaction-prompt" class="hidden">Press E to interact</div>
 
-    <!-- Dashboard -->
+        <!-- Dashboard -->
         <div id="dashboard" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
             <div>FPS: <span id="fps-counter">0</span></div>
             <div>Enemies: <span id="enemy-count">0</span></div>
@@ -108,8 +78,9 @@
             <div id="debug-info" style="display: none; color: #f1c40f; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;">
                 <div>Target: <span id="debug-target-name">None</span></div>
                 <div>ID: <span id="debug-target-id">---</span></div>
+            </div>
         </div>
-    </div>
+
         <div id="debug-container" style="position:absolute; top:0; left:0; pointer-events:none;"></div>
 
     <!-- HUD -->
@@ -143,16 +114,6 @@
         <div id="weapon-info">
             <span id="weapon-name">Pistol</span>
             <span id="ammo-count">12 / 60</span>
-        </div>
-
-        <!-- Hotbar (Bottom Center) -->
-        <div id="hotbar">
-            <div class="slot active" data-slot="1">1</div>
-            <div class="slot" data-slot="2">2</div>
-            <div class="slot" data-slot="3">3</div>
-            <div class="slot" data-slot="4">4</div>
-            <div class="slot" data-slot="5">5</div>
-            <div class="slot" data-slot="6">6</div>
         </div>
 
         <!-- Game Over / Victory Screen -->
@@ -247,6 +208,47 @@
     </div>
 
     <script type="module" src="/src/main.js"></script>
+
+    <!-- Studio palette (global, not tied to touch controls) -->
+    <div id="studio-palette" class="hidden" aria-label="Studio Palette">
+        <div class="palette-title">STUDIO TOOLS</div>
+        <div class="palette-grid">
+            <button id="studio-resume-btn" data-action="resume">Resume & Lock</button>
+            <button data-prefab="house">House</button>
+            <button data-prefab="mansion">Mansion</button>
+            <button data-prefab="cabin">Cabin</button>
+            <button data-prefab="smallBuilding">Small Building</button>
+            <button data-prefab="plateau">Plateau</button>
+            <button data-prefab="rock">Rock</button>
+            <div class="palette-submenu">
+                <button data-prefab="tree" data-submenu="tree-menu">Tree ▾</button>
+                <div id="tree-menu" class="submenu hidden">
+                    <button data-prefab="tree" data-tree-type="Oak">Oak</button>
+                    <button data-prefab="tree" data-tree-type="Pine">Pine</button>
+                </div>
+            </div>
+            <div class="palette-submenu">
+                <button data-prefab="vehicle" data-submenu="vehicle-menu">Vehicle ▾</button>
+                <div id="vehicle-menu" class="submenu hidden">
+                    <button data-prefab="vehicle" data-vehicle-type="car">Car</button>
+                    <button data-prefab="vehicle" data-vehicle-type="truck">Truck</button>
+                </div>
+            </div>
+            <button data-prefab="crate">Crate</button>
+            <button data-action="spawn-npc">Add NPC</button>
+        </div>
+    </div>
+
+    <!-- Hotbar (always visible for desktop/mobile) -->
+    <div id="hotbar">
+        <div class="slot active" data-slot="1">1</div>
+        <div class="slot" data-slot="2">2</div>
+        <div class="slot" data-slot="3">3</div>
+        <div class="slot" data-slot="4">4</div>
+        <div class="slot" data-slot="5">5</div>
+        <div class="slot" data-slot="6">6</div>
+    </div>
+
     <!-- Touch controls container (populated/shown by JS when enabled) -->
     <div id="touch-controls" class="hidden" aria-hidden="true"></div>
 

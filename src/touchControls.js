@@ -223,8 +223,25 @@ export class TouchControls {
         }
     }
 
+    destroyLookArea() {
+        try {
+            if (this.lookArea && this.container && this.lookArea.parentElement === this.container) {
+                this.container.removeChild(this.lookArea);
+            }
+        } catch (e) {}
+        this.lookArea = null;
+    }
+
+    rebuildLookArea() {
+        this.destroyLookArea();
+        this._bindLookArea();
+    }
+
     _bindLookArea() {
         try {
+            if (this.lookArea) {
+                try { this.container.removeChild(this.lookArea); } catch (e) {}
+            }
             // Create an invisible touch area on the right side for camera look control
             this.lookArea = document.createElement('div');
             this.lookArea.className = 'tc-look-area';
@@ -236,6 +253,7 @@ export class TouchControls {
             this.lookArea.style.left = '0'; // Full width
             this.lookArea.style.width = '100%';
             this.lookArea.style.zIndex = '190'; // Below controls
+            //this.lookArea.style.background = 'rgba(241, 196, 15, 0.1)';
             this.lookArea.style.background = 'transparent';
             this.lookArea.style.touchAction = 'none';
             this.lookArea.style.pointerEvents = 'auto'; // Force capture events
