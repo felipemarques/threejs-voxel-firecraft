@@ -323,7 +323,7 @@ html {
 
 #studio-palette {
     position: absolute;
-    right: 20px;
+    right: 120px; /* shift left to avoid overlapping tablet controls */
     bottom: 120px;
     width: 220px;
     background: rgba(0, 0, 0, 0.75);
@@ -335,6 +335,7 @@ html {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
     z-index: 210;
     pointer-events: auto;
+    touch-action: none;
 }
 
 #studio-palette .palette-title {
@@ -379,6 +380,13 @@ html {
     background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
     border-color: rgba(255,255,255,0.3);
     font-weight: 800;
+}
+
+/* Danger button (Add NPC) */
+#studio-palette button[data-action="spawn-npc"] {
+    background: linear-gradient(135deg, #ff4d4f, #d32f2f) !important;
+    border-color: rgba(255,255,255,0.35);
+    color: #fff;
 }
 
 #vehicle-hud {

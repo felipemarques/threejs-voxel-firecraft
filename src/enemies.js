@@ -16,6 +16,7 @@ export class EnemyManager {
         const count = (settings && (settings.gameMode === 'matrix' || settings.gameMode === 'studio')) ? 0 : (settings ? settings.enemyCount : 15);
         this.difficulty = settings ? settings.difficulty : 'medium';
         this.gameMode = settings && settings.gameMode ? settings.gameMode : 'survival';
+        this.studioAiEnabled = false;
 
         // Initial spawn
         for(let i=0; i<count; i++) this.spawnEnemy();
@@ -68,10 +69,14 @@ export class EnemyManager {
         enemy.groanBuffer = this.groanBuffer; // Pass groan buffer
         enemy.world = this.world;
         this.enemies.push(enemy);
+        if (force && this.gameMode === 'studio') {
+            this.studioAiEnabled = true;
+        }
     }
 
     update(dt) {
-        if (this.gameMode === 'matrix' || this.gameMode === 'studio') return;
+        if (this.gameMode === 'matrix') return;
+        if (this.gameMode === 'studio' && !this.studioAiEnabled) return;
         this.enemies.forEach(enemy => {
             enemy.update(dt, this.player);
             

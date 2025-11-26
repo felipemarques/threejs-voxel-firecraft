@@ -594,6 +594,7 @@ class Game {
         let startX = 0;
         let startY = 0;
         let rectCache = null;
+        palette.style.touchAction = 'none';
 
         const onMove = (ev) => {
             // Start dragging after small threshold to avoid resizing on simple clicks
