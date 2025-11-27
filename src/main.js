@@ -513,7 +513,6 @@ class Game {
             effectiveSettings.skipLoot = true;
         }
         if (effectiveSettings.gameMode === 'multiplayer') {
-            effectiveSettings.enemyCount = 0;
             effectiveSettings.skipLoot = true;
             effectiveSettings.stormEnabled = false;
         }
@@ -596,6 +595,12 @@ class Game {
             this.hud.setMultiplayer(this.multiplayer);
         }
         this.enemyManager = new EnemyManager(this.scene, this.player, this.world, effectiveSettings);
+        if (effectiveSettings.gameMode === 'multiplayer') {
+            this.multiplayerEnemyBaseCount = effectiveSettings.enemyCount || 0;
+            if (typeof this.enemyManager.setTargetCount === 'function') {
+                this.enemyManager.setTargetCount(this.multiplayerEnemyBaseCount);
+            }
+        }
         
         // Give player reference to enemies for shooting
         this.player.setEnemyManager(this.enemyManager);
@@ -746,10 +751,11 @@ class Game {
 
     refreshMultiplayerTargets() {
         if (!this.player || this.player.gameMode !== 'multiplayer' || !this.enemyManager) return;
-        const peers = this.multiplayer ? this.multiplayer.getPeerCount() : 1;
-        const target = this.matchPhase === 'live' ? Math.max(0, peers * 10) : 0;
-        if (typeof this.enemyManager.setTargetCount === 'function') {
-            this.enemyManager.setTargetCount(target);
+        const base = typeof this.multiplayerEnemyBaseCount === 'number' ? this.multiplayerEnemyBaseCount : this.enemyManager.enemies.length;
+        if (this.matchPhase === 'live' && typeof this.enemyManager.setTargetCount === 'function') {
+            this.enemyManager.setTargetCount(base);
+        } else if (this.matchPhase !== 'live' && typeof this.enemyManager.setTargetCount === 'function') {
+            this.enemyManager.setTargetCount(0);
         }
     }
 

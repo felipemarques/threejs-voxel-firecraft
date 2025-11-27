@@ -124,7 +124,7 @@ export class EnemyManager {
             return true;
         });
 
-        if (this.targetCount !== undefined && this.targetCount > 0) {
+        if (this.gameMode !== 'multiplayer' && this.targetCount !== undefined && this.targetCount > 0) {
             const deficit = this.targetCount - this.enemies.length;
             if (deficit > 0) {
                 for (let i = 0; i < deficit; i++) this.spawnEnemy();
