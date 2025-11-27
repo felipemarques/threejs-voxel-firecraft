@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voxel Firecraft Prototype</title>
     <link rel="icon" type="image/png" href="/threejs-voxel-firecraft/dist/assets/favicon-BAg40dZS.png">
-  <script type="module" crossorigin src="/threejs-voxel-firecraft/dist/assets/index-DYZwSX_J.js"></script>
-  <link rel="stylesheet" crossorigin href="/threejs-voxel-firecraft/dist/assets/index-DfhICkEw.css">
+  <script type="module" crossorigin src="/threejs-voxel-firecraft/dist/assets/index-CexqHCwd.js"></script>
+  <link rel="stylesheet" crossorigin href="/threejs-voxel-firecraft/dist/assets/index-C5_M2eVM.css">
 </head>
 <body>
 
@@ -53,6 +53,15 @@
         <!-- Studio palette (global, not tied to main menu) -->
         <!-- Storm Timer -->
         <div id="storm-timer">Storm closes in: <span id="timer-value">00:30</span></div>
+        <!-- AI Builder Panel -->
+        <div id="ai-panel" class="hidden" aria-label="AI Builder">
+            <div class="ai-header">Matrix AI Builder</div>
+            <div class="ai-body">
+                <textarea id="ai-prompt" placeholder="Descreva o que quer construir..."></textarea>
+                <button id="ai-send">Send to AI (stub)</button>
+                <div id="ai-log"></div>
+            </div>
+        </div>
         <!-- Minimap -->
         <div id="minimap" aria-label="Minimap">
             <canvas id="minimap-canvas" width="180" height="180"></canvas>
@@ -60,7 +69,7 @@
         </div>
 
         <!-- Camera Mode Hint -->
-        <div id="camera-hint" style="position: absolute; top: 60px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.6); font-size: 12px; font-family: Arial;">Press V to toggle camera</div>
+        <div id="camera-hint">Press V to toggle camera</div>
         <div id="hotkey-hint" class="hidden" style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.75); font-size: 12px; font-family: Arial; cursor: pointer; text-decoration: underline;">Press H for shortcuts</div>
 
         <!-- Interaction Prompt -->
@@ -145,76 +154,122 @@
         <h1 class="game-title">VOXEL FIRECRAFT</h1>
         
         <div class="menu-container">
-            <div class="menu-group">
-                <label>Difficulty</label>
-                <select id="setting-difficulty">
-                    <option value="easy">Easy</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="hard">Hard</option>
-                </select>
+            <div class="tab-buttons">
+                <button class="tab-btn active" data-tab="tab-general">General</button>
+                <button class="tab-btn" data-tab="tab-ai">AI</button>
+                <button class="tab-btn" data-tab="tab-mp">Multiplayer</button>
             </div>
 
-            <div class="menu-group">
-                <label>Game Mode</label>
+            <div id="tab-general" class="tab-panel">
+                <div class="menu-group">
+                    <label>Difficulty</label>
+                    <select id="setting-difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+
+                <div class="menu-group">
+                    <label>Game Mode</label>
                 <select id="setting-game-mode">
                     <option value="survival" selected>Survival / Arcade</option>
                     <option value="arena">Arena (Krunker-like)</option>
                     <option value="matrix">Matrix (Player Only)</option>
+                    <option value="matrix-ai">Matrix AI Builder</option>
+                    <option value="multiplayer">Multiplayer</option>
                     <option value="studio">Studio (Build Blocks)</option>
                 </select>
             </div>
 
-            <div class="menu-group">
-                <label>Enemies: <span id="enemy-count-val">15</span></label>
-                <input type="range" id="setting-enemies" min="5" max="500" step="5" value="15">
-            </div>
+                <div class="menu-group">
+                    <label>Enemies: <span id="enemy-count-val">15</span></label>
+                    <input type="range" id="setting-enemies" min="5" max="500" step="5" value="15">
+                </div>
 
-            <div class="menu-group">
-                <label>Storm Time (s): <span id="storm-time-val">180</span></label>
-                <input type="range" id="setting-storm" min="60" max="1800" step="30" value="180">
-            </div>
+                <div class="menu-group">
+                    <label>Storm Time (s): <span id="storm-time-val">180</span></label>
+                    <input type="range" id="setting-storm" min="60" max="1800" step="30" value="180">
+                </div>
+                <div class="menu-group">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="setting-storm-enabled" checked style="width:20px; height:20px;">
+                        Enable Storm
+                    </label>
+                </div>
 
-            <div class="menu-group">
-                <label>Map Size: <span id="map-size-val">400</span></label>
-                <input type="range" id="setting-map-size" min="150" max="800" step="10" value="400">
-            </div>
+                <div class="menu-group">
+                    <label>Map Size: <span id="map-size-val">400</span></label>
+                    <input type="range" id="setting-map-size" min="150" max="800" step="10" value="400">
+                </div>
 
-            <div class="menu-group">
-                <label>Camera Mode</label>
-                <select id="setting-camera">
-                    <option value="TPS" selected>Third Person</option>
-                    <option value="FPS">First Person</option>
-                </select>
-            </div>
+                <div class="menu-group">
+                    <label>Camera Mode</label>
+                    <select id="setting-camera">
+                        <option value="TPS" selected>Third Person</option>
+                        <option value="FPS">First Person</option>
+                    </select>
+                </div>
 
-            <div class="menu-group" style="flex-direction: row; align-items: center; gap: 10px;">
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <label style="margin:0; color:white; font-weight:bold;">Debug Options</label>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <input type="checkbox" id="setting-debug" style="width: 20px; height: 20px;">
-                        <label for="setting-debug" style="margin: 0; color:white;">Debug Mode</label>
+                <div class="menu-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label style="margin:0; color:white; font-weight:bold;">Debug Options</label>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="setting-debug" style="width: 20px; height: 20px;">
+                            <label for="setting-debug" style="margin: 0; color:white;">Debug Mode</label>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="setting-minimap" style="width: 20px; height: 20px;" checked>
+                            <label for="setting-minimap" style="margin: 0; color:white;">Show Minimap</label>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+                            <input type="checkbox" id="setting-touch-controls" style="width:20px; height:20px;">
+                            <label for="setting-touch-controls" style="margin:0; color:white;">Enable Touch Controls (Mobile)</label>
+                        </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <input type="checkbox" id="setting-minimap" style="width: 20px; height: 20px;" checked>
-                        <label for="setting-minimap" style="margin: 0; color:white;">Show Minimap</label>
+                </div>
+                
+                <div class="menu-group">
+                    <label>Background Music</label>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <input type="checkbox" id="setting-music-enabled" checked style="width:20px; height:20px;">
+                        <label for="setting-music-enabled" style="margin:0; color:white;">Enable Background Music</label>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
-                        <input type="checkbox" id="setting-touch-controls" style="width:20px; height:20px;">
-                        <label for="setting-touch-controls" style="margin:0; color:white;">Enable Touch Controls (Mobile)</label>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <label style="margin:0; min-width:60px;">Volume:</label>
+                        <input type="range" id="setting-music-volume" min="0" max="100" value="50" style="flex:1;">
+                        <span id="setting-music-volume-val" style="color:white; font-weight:bold; min-width:35px;">50</span>
                     </div>
                 </div>
             </div>
-            
-            <div class="menu-group">
-                <label>Background Music</label>
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-                    <input type="checkbox" id="setting-music-enabled" checked style="width:20px; height:20px;">
-                    <label for="setting-music-enabled" style="margin:0; color:white;">Enable Background Music</label>
+
+            <div id="tab-ai" class="tab-panel hidden">
+                <div class="menu-group">
+                    <label>OpenAI API Key</label>
+                    <input type="password" id="setting-openai-key" placeholder="sk-..." />
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <label style="margin:0; min-width:60px;">Volume:</label>
-                    <input type="range" id="setting-music-volume" min="0" max="100" value="50" style="flex:1;">
-                    <span id="setting-music-volume-val" style="color:white; font-weight:bold; min-width:35px;">50</span>
+                <div class="menu-group">
+                    <label>Groq API Key</label>
+                    <input type="password" id="setting-groq-key" placeholder="gsk_..." />
+                </div>
+                <div class="menu-group">
+                    <label>NVIDIA API Key</label>
+                    <input type="password" id="setting-nvidia-key" placeholder="nvapi_..." />
+                </div>
+            </div>
+
+            <div id="tab-mp" class="tab-panel hidden">
+                <div class="menu-group">
+                    <label>Multiplayer Server URL</label>
+                    <input type="text" id="setting-mp-server" placeholder="wss://example.com/socket" />
+                </div>
+                <div class="menu-group">
+                    <label>Nickname</label>
+                    <input type="text" id="setting-mp-nickname" placeholder="Player123" />
+                </div>
+                <div class="menu-group">
+                    <label>Player Color</label>
+                    <input type="color" id="setting-mp-color" value="#29b6f6" />
                 </div>
             </div>
 
