@@ -272,6 +272,7 @@ class Game {
         const mpRoomGenerate = document.getElementById('mp-room-generate');
         const mpNickInput = document.getElementById('setting-mp-nickname');
         const mpColorInput = document.getElementById('setting-mp-color');
+        const mpZombiesCheckbox = document.getElementById('setting-mp-zombies');
         const hotkeyHint = document.getElementById('hotkey-hint');
         const hotkeyModal = document.getElementById('hotkey-modal');
         const hotkeyClose = document.getElementById('hotkey-modal-close');
@@ -321,6 +322,7 @@ class Game {
             if (mpRoomInput) mpRoomInput.value = s.mpRoom || '';
             if (mpNickInput) mpNickInput.value = s.mpNick || '';
             if (mpColorInput) mpColorInput.value = s.mpColor || '#29b6f6';
+            if (mpZombiesCheckbox) mpZombiesCheckbox.checked = s.mpZombies !== false;
         }
 
         // Update labels live
@@ -349,7 +351,8 @@ class Game {
                 mpServer: mpServerInput ? mpServerInput.value : '',
                 mpRoom: mpRoomInput ? mpRoomInput.value : '',
                 mpNick: mpNickInput ? mpNickInput.value : '',
-                mpColor: mpColorInput ? mpColorInput.value : '#29b6f6'
+                mpColor: mpColorInput ? mpColorInput.value : '#29b6f6',
+                mpZombies: mpZombiesCheckbox ? mpZombiesCheckbox.checked : true
             };
             
             // Save Settings
@@ -508,6 +511,7 @@ class Game {
         this.matchPhase = 'live';
         this.lobbyCountdown = 0;
         const effectiveSettings = { ...settings };
+        this.multiplayerEnemyBaseCount = effectiveSettings.enemyCount || 0;
         if (effectiveSettings.gameMode === 'matrix' || effectiveSettings.gameMode === 'studio') {
             effectiveSettings.enemyCount = 0;
             effectiveSettings.skipLoot = true;
@@ -515,6 +519,9 @@ class Game {
         if (effectiveSettings.gameMode === 'multiplayer') {
             effectiveSettings.skipLoot = true;
             effectiveSettings.stormEnabled = false;
+            if (settings.mpZombies === false) {
+                effectiveSettings.enemyCount = 0;
+            }
         }
         this.player = new Player(this.camera, this.scene, null, effectiveSettings);
         if (effectiveSettings.gameMode === 'multiplayer') {
