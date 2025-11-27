@@ -6,6 +6,7 @@ import { HUD } from './hud.js';
 import { EnemyManager } from './enemies.js';
 import { ItemManager } from './items.js';
 import { TouchControls } from './touchControls.js';
+import { MultiplayerClient } from './multiplayerClient.js';
 
 // Mobile/coarse-pointer detection used to avoid Pointer Lock on touch devices
 const IS_MOBILE = (() => {
@@ -170,6 +171,7 @@ class Game {
         const diffSelect = document.getElementById('setting-difficulty');
         const enemiesInput = document.getElementById('setting-enemies');
         const stormInput = document.getElementById('setting-storm');
+        const stormEnabledInput = document.getElementById('setting-storm-enabled');
         const mapSizeInput = document.getElementById('setting-map-size');
         const mapSizeVal = document.getElementById('map-size-val');
         const debugCheckbox = document.getElementById('setting-debug');
@@ -181,6 +183,12 @@ class Game {
         const gameModeSelect = document.getElementById('setting-game-mode');
         const quitBtn = document.getElementById('quit-btn');
         const floatBtn = document.getElementById('float-btn');
+        const openaiKeyInput = document.getElementById('setting-openai-key');
+        const groqKeyInput = document.getElementById('setting-groq-key');
+        const nvidiaKeyInput = document.getElementById('setting-nvidia-key');
+        const mpServerInput = document.getElementById('setting-mp-server');
+        const mpNickInput = document.getElementById('setting-mp-nickname');
+        const mpColorInput = document.getElementById('setting-mp-color');
         const hotkeyHint = document.getElementById('hotkey-hint');
         const hotkeyModal = document.getElementById('hotkey-modal');
         const hotkeyClose = document.getElementById('hotkey-modal-close');
@@ -205,6 +213,7 @@ class Game {
             stormInput.value = s.stormTime;
             enemiesVal.innerText = s.enemyCount;
             stormVal.innerText = s.stormTime;
+            if (stormEnabledInput) stormEnabledInput.checked = s.stormEnabled !== false;
             if (mapSizeInput && mapSizeVal) {
                 const ms = s.mapSize || DEFAULT_MAP_SIZE;
                 mapSizeInput.value = ms;
@@ -221,6 +230,12 @@ class Game {
             if (s.cameraMode) cameraSelect.value = s.cameraMode;
             if (s.useTouchControls !== undefined && touchCheckbox) touchCheckbox.checked = !!s.useTouchControls;
             if (s.gameMode && gameModeSelect) gameModeSelect.value = s.gameMode;
+            if (openaiKeyInput) openaiKeyInput.value = s.openaiKey || '';
+            if (groqKeyInput) groqKeyInput.value = s.groqKey || '';
+            if (nvidiaKeyInput) nvidiaKeyInput.value = s.nvidiaKey || '';
+            if (mpServerInput) mpServerInput.value = s.mpServer || '';
+            if (mpNickInput) mpNickInput.value = s.mpNick || '';
+            if (mpColorInput) mpColorInput.value = s.mpColor || '#29b6f6';
         }
 
         // Update labels live
@@ -233,6 +248,7 @@ class Game {
                 difficulty: diffSelect.value,
                 enemyCount: parseInt(enemiesInput.value),
                 stormTime: parseInt(stormInput.value),
+                stormEnabled: stormEnabledInput ? stormEnabledInput.checked : true,
                 mapSize: mapSizeInput ? parseInt(mapSizeInput.value) : DEFAULT_MAP_SIZE,
                 debugMode: debugCheckbox.checked,
                 showMinimap: minimapCheckbox ? minimapCheckbox.checked : true,
@@ -240,7 +256,13 @@ class Game {
                 musicEnabled: document.getElementById('setting-music-enabled') ? document.getElementById('setting-music-enabled').checked : true,
                 cameraMode: cameraSelect.value,
                 useTouchControls: touchCheckbox ? touchCheckbox.checked : false,
-                gameMode: gameModeSelect ? gameModeSelect.value : 'survival'
+                gameMode: gameModeSelect ? gameModeSelect.value : 'survival',
+                openaiKey: openaiKeyInput ? openaiKeyInput.value : '',
+                groqKey: groqKeyInput ? groqKeyInput.value : '',
+                nvidiaKey: nvidiaKeyInput ? nvidiaKeyInput.value : '',
+                mpServer: mpServerInput ? mpServerInput.value : '',
+                mpNick: mpNickInput ? mpNickInput.value : '',
+                mpColor: mpColorInput ? mpColorInput.value : '#29b6f6'
             };
             
             // Save Settings
@@ -274,6 +296,15 @@ class Game {
                 if (this.hud) {
                     this.hud.settings = settings;
                 }
+                if (this.world) {
+                    this.world.stormEnabled = settings.stormEnabled !== false;
+                    const canShowStorm = this.world.stormEnabled && this.world.gameMode !== 'matrix' && this.world.gameMode !== 'studio' && this.world.gameMode !== 'matrix-ai';
+                    if (this.world.stormMesh) {
+                        this.world.stormMesh.visible = canShowStorm;
+                    } else if (canShowStorm && typeof this.world.createStormVisuals === 'function') {
+                        this.world.createStormVisuals();
+                    }
+                }
                 this.setHotbarVisible(true);
             } else {
                 // Start new game
@@ -293,6 +324,9 @@ class Game {
                 try {
                     localStorage.removeItem('voxel-firecraft-settings');
                 } catch (e) {}
+                if (this.multiplayer && typeof this.multiplayer.dispose === 'function') {
+                    this.multiplayer.dispose();
+                }
                 location.reload();
             };
         }
@@ -348,6 +382,21 @@ class Game {
 
         // Hide hotbar while menu is open
         this.setHotbarVisible(false);
+
+        // Tabs: simple show/hide panels
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.getAttribute('data-tab');
+                tabButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                tabPanels.forEach(p => {
+                    if (p.id === target) p.classList.remove('hidden');
+                    else p.classList.add('hidden');
+                });
+            });
+        });
     }
 
     startGame(settings) {
@@ -357,6 +406,11 @@ class Game {
         if (effectiveSettings.gameMode === 'matrix' || effectiveSettings.gameMode === 'studio') {
             effectiveSettings.enemyCount = 0;
             effectiveSettings.skipLoot = true;
+        }
+        if (effectiveSettings.gameMode === 'multiplayer') {
+            effectiveSettings.enemyCount = 0;
+            effectiveSettings.skipLoot = true;
+            effectiveSettings.stormEnabled = false;
         }
         this.player = new Player(this.camera, this.scene, null, effectiveSettings);
         
@@ -376,6 +430,31 @@ class Game {
         // Matrix mode: spawn all items near player for quick testing
         if (effectiveSettings.gameMode === 'matrix' && this.itemManager && typeof this.itemManager.spawnMatrixLoadout === 'function') {
             this.itemManager.spawnMatrixLoadout(this.player.position.x, this.player.position.z);
+        }
+        // Multiplayer client setup
+        if (effectiveSettings.gameMode === 'multiplayer') {
+            this.multiplayer = new MultiplayerClient({
+                player: this.player,
+                scene: this.scene,
+                url: settings.mpServer,
+                nick: settings.mpNick || 'Player',
+                color: settings.mpColor || '#29b6f6'
+            });
+            if (!settings.mpServer) {
+                alert('Multiplayer server URL not set. Please configure it in the AI tab.');
+            }
+        } else {
+            this.multiplayer = null;
+        }
+        // AI Builder mode: no enemies/loot, show AI panel
+        if (effectiveSettings.gameMode === 'matrix-ai') {
+            effectiveSettings.enemyCount = 0;
+            effectiveSettings.skipLoot = true;
+            const panel = document.getElementById('ai-panel');
+            if (panel) panel.classList.remove('hidden');
+        } else {
+            const panel = document.getElementById('ai-panel');
+            if (panel) panel.classList.add('hidden');
         }
 
         this.hud = new HUD(this.player, this.world, settings);
@@ -414,10 +493,10 @@ class Game {
             }
         }
 
-        // Hide storm timer in studio
+        // Hide storm timer when storm disabled or non-storm modes
         const stormTimer = document.getElementById('storm-timer');
         if (stormTimer) {
-            const hide = effectiveSettings.gameMode === 'studio';
+            const hide = effectiveSettings.stormEnabled === false || effectiveSettings.gameMode === 'studio' || effectiveSettings.gameMode === 'matrix' || effectiveSettings.gameMode === 'matrix-ai' || effectiveSettings.gameMode === 'multiplayer';
             stormTimer.classList.toggle('hidden', hide);
         }
 
@@ -456,6 +535,8 @@ class Game {
 
         // Studio palette
         this.setupStudioPalette(effectiveSettings);
+        this.refreshStudioPaletteVisibility();
+        this.setupAiPanel();
 
         // Lock pointer immediately after Play click (desktop)
         if (!IS_MOBILE && this.player && this.player.controls && !this.player.controls.isLocked) {
@@ -493,6 +574,31 @@ class Game {
         target.addEventListener('touchmove', clear);
     }
 
+    setupAiPanel() {
+        const panel = document.getElementById('ai-panel');
+        const sendBtn = document.getElementById('ai-send');
+        const promptEl = document.getElementById('ai-prompt');
+        const logEl = document.getElementById('ai-log');
+        if (!panel || !sendBtn || !promptEl || !logEl) return;
+
+        const appendLog = (text, cls = '') => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            if (cls) div.className = cls;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+
+        sendBtn.onclick = () => {
+            const val = promptEl.value.trim();
+            if (!val) return;
+            appendLog(`You: ${val}`, 'ai-user');
+            // Stubbed AI response
+            appendLog('AI: (stub) Interpreter not wired. Imagine this runs your Three.js code.', 'ai-bot');
+            promptEl.value = '';
+        };
+    }
+
     refreshStudioPaletteVisibility() {
         const palette = document.getElementById('studio-palette');
         if (!palette) return;
@@ -503,7 +609,7 @@ class Game {
     setupStudioPalette(settings) {
         const palette = document.getElementById('studio-palette');
         if (!palette) return;
-        const isStudio = settings && settings.gameMode === 'studio';
+        const isStudio = settings && (settings.gameMode === 'studio' || settings.gameMode === 'matrix-ai');
         palette.classList.toggle('hidden', !isStudio);
         if (!isStudio) return;
 
@@ -929,6 +1035,14 @@ class Game {
             }
 
             try {
+                if (this.multiplayer && typeof this.multiplayer.update === 'function') {
+                    this.multiplayer.update(cappedDt);
+                }
+            } catch (err) {
+                console.error('Error in multiplayer.update:', err);
+            }
+
+            try {
                 this.hud.update();
             } catch (err) {
                 console.error('Error in hud.update:', err);
@@ -945,7 +1059,7 @@ class Game {
 
             // Check Victory
             try {
-                const noEnemiesMode = this.player && (this.player.gameMode === 'matrix' || this.player.gameMode === 'studio');
+                const noEnemiesMode = this.player && (this.player.gameMode === 'matrix' || this.player.gameMode === 'studio' || this.player.gameMode === 'multiplayer');
                 if (!noEnemiesMode && this.enemyManager.enemies.length === 0 && !this.player.isDead && !this.victoryShown) {
                     this.victoryShown = true; // Prevent multiple calls
                     try {

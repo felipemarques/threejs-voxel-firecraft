@@ -1489,7 +1489,7 @@ export class Player {
 
         // Rotate wheels based on traveled distance
         const movedDist = vehicle.position.distanceTo(prevPos);
-        this.rotateVehicleWheels(vehicle, movedDist);
+        this.rotateVehicleWheels(vehicle, movedDist, this.vehicleSpeed);
 
         // Fuel consumption combining idle, throttle, distance traveled, and turbo penalty
         let fuelUsed = 0;
@@ -1550,12 +1550,13 @@ export class Player {
         this.handleVehicleDriveSound(driveActive);
     }
 
-    rotateVehicleWheels(vehicle, distanceMoved) {
+    rotateVehicleWheels(vehicle, distanceMoved, speed) {
         if (!vehicle || !vehicle.userData || !vehicle.userData.wheels || !vehicle.userData.wheels.length) return;
         const radius = vehicle.userData.wheelRadius || 0.35;
         const rot = (distanceMoved / (radius || 0.35));
+        const dir = speed >= 0 ? -1 : 1; // flip based on forward/reverse
         vehicle.userData.wheels.forEach(w => {
-            try { w.rotation.x -= rot; } catch (e) {}
+            try { w.rotation.x += dir * rot; } catch (e) {}
         });
     }
 

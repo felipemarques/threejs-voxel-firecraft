@@ -13,7 +13,7 @@ export class EnemyManager {
         this.killedCount = 0;
         this.groanBuffer = null;
         
-        const count = (settings && (settings.gameMode === 'matrix' || settings.gameMode === 'studio')) ? 0 : (settings ? settings.enemyCount : 15);
+        const count = (settings && (settings.gameMode === 'matrix' || settings.gameMode === 'studio')) ? 0 : (settings && settings.gameMode === 'matrix-ai' ? 5 : (settings ? settings.enemyCount : 15));
         this.difficulty = settings ? settings.difficulty : 'medium';
         this.gameMode = settings && settings.gameMode ? settings.gameMode : 'survival';
         this.studioAiEnabled = false;
@@ -58,8 +58,23 @@ export class EnemyManager {
     spawnEnemy(force = false) {
         if (!force && (this.gameMode === 'matrix' || this.gameMode === 'studio')) return;
         const spawnSpan = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
-        const x = (Math.random() - 0.5) * spawnSpan;
-        const z = (Math.random() - 0.5) * spawnSpan;
+        let x = (Math.random() - 0.5) * spawnSpan;
+        let z = (Math.random() - 0.5) * spawnSpan;
+        // Matrix AI Builder: ensure enemies spawn far (>= mapHalfSize * 0.6 away from player)
+        if (this.gameMode === 'matrix-ai' && this.player) {
+            const minDist = (this.world && this.world.halfMapSize ? this.world.halfMapSize : 100) * 0.6;
+            let attempts = 0;
+            while (attempts < 10) {
+                const px = this.player.position.x;
+                const pz = this.player.position.z;
+                const dx = x - px;
+                const dz = z - pz;
+                if (Math.sqrt(dx * dx + dz * dz) >= minDist) break;
+                x = (Math.random() - 0.5) * spawnSpan;
+                z = (Math.random() - 0.5) * spawnSpan;
+                attempts++;
+            }
+        }
         const groundY = (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) : 0;
         
         const mapHalfSize = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;

@@ -18,6 +18,7 @@ export class World {
         this.stormRadius = this.halfMapSize;
         this.initialStormRadius = this.stormRadius;
         this._heightFn = this._buildHeightFn();
+        this.stormEnabled = settings && settings.stormEnabled !== false;
         
         const stormTime = settings ? settings.stormTime : 180; // seconds
         this.stormShrinkRate = this.stormRadius / stormTime; 
@@ -32,13 +33,17 @@ export class World {
             this.createArenaEnvironment();
         } else if (this.gameMode === 'matrix') {
             this.createMatrixEnvironment();
+        } else if (this.gameMode === 'matrix-ai') {
+            this.createMatrixAIEnvironment();
+        } else if (this.gameMode === 'multiplayer') {
+            this.createMultiplayerEnvironment();
         } else if (this.gameMode === 'studio') {
             this.createStudioEnvironment();
         } else {
             this.createEnvironment();
         }
         if (this.gameMode !== 'matrix' && this.gameMode !== 'studio') {
-            this.createStormVisuals();
+            if (this.stormEnabled) this.createStormVisuals();
         }
     }
 
@@ -361,6 +366,39 @@ export class World {
             const cloud = this.createVoxelCloud(x, z);
             this.scene.add(cloud);
         }
+    }
+
+    createMatrixAIEnvironment() {
+        // Transparent grid floor using GridHelper
+        const gridSize = this.mapSize;
+        const divisions = 80;
+        const grid = new THREE.GridHelper(gridSize, divisions, 0x66ccff, 0x66ccff);
+        grid.material.opacity = 0.2;
+        grid.material.transparent = true;
+        this.scene.add(grid);
+
+        // Invisible ground plane for raycasting/placement
+        const groundGeo = new THREE.PlaneGeometry(gridSize, gridSize, 1, 1);
+        const groundMat = new THREE.MeshBasicMaterial({ visible: false });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.userData = { gameId: this.generateID(), gameName: 'Ground', type: 'ground' };
+        this.scene.add(ground);
+        this.objects.push(ground);
+    }
+
+    createMultiplayerEnvironment() {
+        // Use the same voxel-ish ground material as Studio
+        const groundGeo = new THREE.PlaneGeometry(this.mapSize, this.mapSize, 128, 128);
+        const groundMat = this.buildVoxelGroundMaterial();
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        ground.userData = { gameId: this.generateID(), gameName: 'Ground' };
+        this.scene.add(ground);
+        this.objects.push(ground);
+        // Storm disabled for this mode
+        this.stormEnabled = false;
     }
 
     generateID() {
@@ -1197,14 +1235,17 @@ export class World {
     }
 
     update(dt, playerPos) {
-        if (this.gameMode === 'matrix' || this.gameMode === 'studio') {
+        if (this.gameMode === 'matrix' || this.gameMode === 'studio' || this.gameMode === 'matrix-ai') {
             return { inStorm: false };
         }
+        if (this.stormEnabled === false) return { inStorm: false };
         // Shrink storm
         if (this.stormRadius > 10) {
             this.stormRadius -= this.stormShrinkRate * dt;
             const scale = this.initialStormRadius ? (this.stormRadius / this.initialStormRadius) : 1;
-            this.stormMesh.scale.set(scale, 1, scale);
+            if (this.stormMesh && this.stormMesh.scale) {
+                this.stormMesh.scale.set(scale, 1, scale);
+            }
         }
 
         // Check storm damage
