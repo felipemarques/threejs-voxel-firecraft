@@ -844,6 +844,7 @@ class Game {
         }
 
         this.hud = new HUD(this.player, this.world, settings);
+        if (this.player) this.player.hud = this.hud;
         if (this.hud && typeof this.hud.setRenderer === 'function') {
             this.hud.setRenderer(this.renderer);
         }

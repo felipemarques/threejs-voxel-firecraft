@@ -13,6 +13,7 @@ export class Player {
         this.scene = scene;
         this.worldObjects = worldObjects;
         this.world = null;
+        this.hud = null;
         this.gameMode = settings.gameMode || 'survival';
         // Optional visual tracers; off by default to avoid extra draw calls
         this.showTracers = settings.showTracers === true;
@@ -2492,6 +2493,9 @@ export class Player {
         // Stop movement/updates for ragdoll pose
         this.moveForward = this.moveBackward = this.moveLeft = this.moveRight = false;
         this.velocity.set(0, 0, 0);
+        if (this.hud && typeof this.hud.showGameOver === 'function') {
+            this.hud.showGameOver('YOU DIED');
+        }
     }
 
     checkCollision(direction, distance) {
