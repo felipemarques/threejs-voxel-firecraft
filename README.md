@@ -48,7 +48,8 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 ## 🎲 Game Features
 
 ### Game Modes
-- **Survival / Arcade:** Classic loop with storm, loot, enemies.
+- **Survival:** New hardcore mode with no storm, no vehicles, minimum map size of 100m. Features special zombie variants and sky loot rewards.
+- **Arcade:** Classic loop with storm, loot, enemies, and all features enabled.
 - **Arena:** Smaller map with dense cover for faster matches.
 - **Matrix:** Sandbox with no enemies for exploration and testing.
 - **Studio:** Creative mode with block building, scaling, move/remove tools and optional floating toggle.
@@ -75,16 +76,41 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 - **Stamina:** 100 points - used for punching and walking
 
 ### Enemy AI
-- **Intelligent Behavior:**
-  - Zombies detect and chase players within 25 meters
-  - Strafe movement to avoid being easy targets
-  - Melee attacks when in range (2 meters)
-  - Take storm damage when outside safe zone
+
+#### Zombie Types
+- **Normal Zombie (Purple):**
+  - Standard enemy with base stats
+  - Appears in all combat modes
   
-- **Difficulty Levels:**
-  - **Easy:** 50 HP, 2 damage, slower movement
-  - **Medium:** 100 HP, 5 damage, moderate speed
-  - **Hard:** 150 HP, 10 damage, fast and aggressive
+- **Fat Zombie (Green):**
+  - 50% more health than normal zombies
+  - 50% slower movement speed
+  - Visibly larger and bulkier appearance
+  - Spawns in 1:1 ratio with normal zombies in Arcade and Survival modes
+  
+- **Big Zombie (Purple, 2x size):**
+  - **Survival Mode Exclusive**
+  - 5x health of normal zombies
+  - 2x damage output
+  - 25% slower movement
+  - Larger attack range (3.5m vs 2m)
+  - Spawns at 1 per 5 total enemies (e.g., 20 enemies = 4 Big Zombies)
+
+#### Intelligent Behavior:
+- Zombies detect and chase players within 25 meters
+- Line-of-sight checking (won't chase through walls)
+- Collision detection with environment objects
+- Strafe movement to avoid being easy targets
+- Melee attacks when in range
+- Take storm damage when outside safe zone (Arcade mode)
+- Proximity-based groaning sounds
+  
+#### Difficulty Levels:
+- **Easy:** 50 HP, 2 damage, slower movement
+- **Medium:** 100 HP, 5 damage, moderate speed
+- **Hard:** 150 HP, 10 damage, fast and aggressive
+
+*Note: Big Zombie and Fat Zombie stats are multiplied on top of difficulty base stats*
 
 ### Storm Mechanics
 - **Shrinking Zone:** The safe zone gradually shrinks over time
@@ -100,12 +126,29 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 - **Backpacks:** Cosmetic pickups
 - **Interactive:** Press **E** to open chests and collect items
 
+#### Sky Loot System (Arcade & Survival)
+A special reward system that activates when you've proven your combat skills:
+
+**Activation Requirements:**
+- All ground loot has been collected/opened
+- Player has eliminated at least 30% of total zombies
+
+**Rewards:**
+- 2-3 random items drop from the sky near the player
+- Drops occur every 45 seconds once activated
+- Helps sustain long survival runs
+- Console message confirms when system activates
+
 ### World Generation
 - **Voxel Environment:** Minecraft-style blocky aesthetics
 - **Procedural Elements:**
   - Large/small houses labeled as House/Mansion/Cabin plus plateaus, bunkers, ramps
   - Trees, rocks, bushes, grass clumps, vehicles, plateaus, small buildings
   - Arena layouts with crates and ramps
+- **Mode-Specific Generation:**
+  - **Survival:** Clean natural environment with only ground, trees, rocks, and bushes (no buildings or vehicles)
+  - **Arcade:** Full environment with all structures and vehicles
+  - **Arena:** Compact combat-focused layout
   
 ### HUD & Dashboard
 
@@ -113,6 +156,10 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 - Shield bar (blue)
 - Health bar (green)
 - Stamina bar (gold)
+
+**Timers (Top Center):**
+- **Storm Timer:** Shows time until storm fully closes (Arcade mode only)
+- **Survival Timer:** Tracks your survival time in MM:SS format (Arcade & Survival modes)
 
 **Dashboard (Top Left):**
 - **FPS:** Frames per second counter
@@ -258,7 +305,7 @@ The built files will be in the `dist/` directory.
 
 1. **Manage Your Stamina:** Don't spam punches - you'll get tired! Use firearms when possible.
 
-2. **Watch the Storm:** Keep an eye on the storm timer and stay within the safe zone.
+2. **Watch the Storm:** Keep an eye on the storm timer and stay within the safe zone (Arcade mode).
 
 3. **Explore Houses:** Loot chests inside buildings for better weapons and ammo.
 
@@ -276,6 +323,19 @@ The built files will be in the `dist/` directory.
 
 10. **Difficulty Matters:** Start on Easy to learn the mechanics, then increase difficulty.
 
+11. **Survival Mode Strategy:**
+    - No storm means you can take your time exploring
+    - Focus on eliminating 30% of zombies to unlock sky loot
+    - Collect all ground loot before the 30% threshold for maximum benefit
+    - Big Zombies are tough - save your best weapons for them
+    
+12. **Zombie Variant Tactics:**
+    - **Fat Zombies (Green):** Slower but tankier - kite them and use sustained fire
+    - **Big Zombies (Purple, Large):** Extremely dangerous - maintain distance, use sniper/rifle
+    - **Normal Zombies (Purple):** Standard threat - any weapon works effectively
+    
+13. **Sky Loot System:** Once activated, stay alive for 45-second intervals to receive supply drops near your position.
+
 ## 📝 License
 
 This project is open source and available for educational purposes.
@@ -292,6 +352,14 @@ This project is open source and available for educational purposes.
 
 ## What's New (Nov 2025)
 
+### Latest Updates
+- **Survival Game Mode:** New hardcore mode with no storm, no vehicles, clean natural environment (trees, rocks, bushes only), and minimum 100m map size.
+- **Zombie Variants:**
+  - **Fat Zombie (Green):** 50% more health, 50% slower, bulkier appearance. Spawns 1:1 with normal zombies in Arcade/Survival.
+  - **Big Zombie (Purple, 2x size):** Survival-exclusive boss enemy with 5x health, 2x damage, 25% slower, larger attack range. Spawns at 1 per 5 enemies.
+- **Survival Timer:** Real-time survival tracking displayed in MM:SS format for Arcade and Survival modes.
+- **Sky Loot System:** Rewards players who eliminate 30%+ zombies and collect all ground loot with periodic airdrops (2-3 items every 45s).
+- **Enhanced NPC AI:** Line-of-sight checking, collision detection with environment, improved pathfinding.
 - Background music with play/pause and persistent volume setting in the main menu.
 - PointerLock is locked via canvas click to avoid accidental document locks from UI interactions.
 - NPC wander AI, improved chase/strafing behavior and smoother attack animations.

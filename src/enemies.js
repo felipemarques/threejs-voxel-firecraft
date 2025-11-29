@@ -84,32 +84,42 @@ export class EnemyManager {
         
         // Determine zombie type
         let isBig = false;
-        let zombieType = 'normal'; // 'normal', 'fat', or 'big'
+        let zombieType = 'normal'; // 'normal', 'fat', 'big', or 'slender'
         
         if (this.gameMode === 'survival') {
-            // Count existing big zombies
+            // Count existing zombies by type
             const bigCount = this.enemies.filter(e => e.isBig).length;
-            // Calculate allowed big zombies based on total target count
-            // 5 enemies -> 1 big
-            // 10 enemies -> 2 big
-            // 20 enemies -> 4 big
-            // Ratio is 1 big per 5 total
+            const slenderCount = this.enemies.filter(e => e.zombieType === 'slender').length;
+            
+            // Calculate allowed big zombies based on total target count (1 per 5)
             const allowedBig = Math.floor(this.targetCount / 5);
+            // Calculate allowed slenderman (1 per 10)
+            const allowedSlender = Math.floor(this.targetCount / 10);
             
             if (bigCount < allowedBig) {
                 isBig = true;
                 zombieType = 'big';
+            } else if (slenderCount < allowedSlender) {
+                zombieType = 'slender';
             } else {
-                // For non-big zombies in survival, alternate between normal and fat (1:1 ratio)
+                // For remaining zombies, alternate between normal and fat (1:1 ratio)
                 const normalCount = this.enemies.filter(e => !e.isBig && e.zombieType === 'normal').length;
                 const fatCount = this.enemies.filter(e => !e.isBig && e.zombieType === 'fat').length;
                 zombieType = fatCount < normalCount ? 'fat' : 'normal';
             }
         } else if (this.gameMode === 'arcade') {
-            // In arcade mode, alternate between normal and fat (1:1 ratio)
-            const normalCount = this.enemies.filter(e => e.zombieType === 'normal').length;
-            const fatCount = this.enemies.filter(e => e.zombieType === 'fat').length;
-            zombieType = fatCount < normalCount ? 'fat' : 'normal';
+            // Count slenderman
+            const slenderCount = this.enemies.filter(e => e.zombieType === 'slender').length;
+            const allowedSlender = Math.floor(this.targetCount / 10);
+            
+            if (slenderCount < allowedSlender) {
+                zombieType = 'slender';
+            } else {
+                // In arcade mode, alternate between normal and fat (1:1 ratio)
+                const normalCount = this.enemies.filter(e => e.zombieType === 'normal').length;
+                const fatCount = this.enemies.filter(e => e.zombieType === 'fat').length;
+                zombieType = fatCount < normalCount ? 'fat' : 'normal';
+            }
         }
 
         const enemy = new Bot(this.scene, x, groundY, z, this.difficulty, mapHalfSize, this.player, isBig, zombieType);
@@ -239,6 +249,14 @@ class Bot {
             this.health *= 1.5; // 50% more health
             this.speed *= 0.5; // 50% slower
         }
+        
+        // Apply Slenderman modifiers
+        if (this.zombieType === 'slender') {
+            this.health *= 0.8; // 20% less health (glass cannon)
+            this.speed *= 1.5; // 50% faster
+            this.damage *= 1.5; // 50% more damage
+            this.attackRange = 3.0; // Longer reach
+        }
 
         this.maxHealth = this.health;
 
@@ -266,6 +284,8 @@ class Bot {
             zombieName = 'Big Zombie';
         } else if (this.zombieType === 'fat') {
             zombieName = 'Fat Zombie';
+        } else if (this.zombieType === 'slender') {
+            zombieName = 'Slenderman';
         }
         
         this.mesh.userData = { gameId: Math.random().toString(36).substr(2, 9).toUpperCase(), gameName: zombieName };
@@ -273,6 +293,12 @@ class Bot {
             this.mesh.scale.set(2, 2, 2);
         }
         this.scene.add(this.mesh);
+
+        // Slenderman has completely different appearance
+        if (this.zombieType === 'slender') {
+            this.createSlendermanMesh();
+            return;
+        }
 
         // Choose skin color based on zombie type
         const skinColor = this.zombieType === 'fat' ? 0x4a7c59 : 0x8e44ad; // Green for fat, purple for normal/big
@@ -292,26 +318,31 @@ class Bot {
         const head = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize * 0.9, headSize), skinMat);
         head.position.y = 1.75;
         this.mesh.add(head);
-        // Eyes (glowing)
+        
+        // Eyes (glowing) - scale with head for FatZombie
         const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff1744, emissive: 0xff1744, emissiveIntensity: 0.8, roughness: 0.2 });
-        const eyeGeo = new THREE.BoxGeometry(0.12, 0.08, 0.02);
+        const eyeScale = isFat ? 1.2 : 1.0;
+        const eyeGeo = new THREE.BoxGeometry(0.12 * eyeScale, 0.08 * eyeScale, 0.02);
         const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-        leftEye.position.set(-0.12, 0.05, 0.26);
+        leftEye.position.set(-0.12 * headScale, 0.05, 0.26 * headScale);
         const rightEye = leftEye.clone();
-        rightEye.position.x = 0.12;
+        rightEye.position.x = 0.12 * headScale;
         head.add(leftEye);
         head.add(rightEye);
-        // Mouth (jagged)
+        
+        // Mouth (jagged) - scale with head for FatZombie
         const mouthMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, emissive: 0x330000, emissiveIntensity: 0.4 });
-        const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.04), mouthMat);
-        mouth.position.set(0, -0.14, 0.25);
+        const mouthScale = isFat ? 1.3 : 1.0;
+        const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.24 * mouthScale, 0.08 * mouthScale, 0.04), mouthMat);
+        mouth.position.set(0, -0.14 * headScale, 0.25 * headScale);
         head.add(mouth);
-        // Teeth accents
+        
+        // Teeth accents - scale with mouth for FatZombie
         const toothMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.3 });
-        const toothGeo = new THREE.BoxGeometry(0.05, 0.06, 0.02);
+        const toothGeo = new THREE.BoxGeometry(0.05 * mouthScale, 0.06 * mouthScale, 0.02);
         for (let i = -1; i <= 1; i += 2) {
             const tooth = new THREE.Mesh(toothGeo, toothMat);
-            tooth.position.set(i * 0.06, -0.05, 0.04);
+            tooth.position.set(i * 0.06 * mouthScale, -0.05, 0.04);
             mouth.add(tooth);
         }
 
@@ -378,17 +409,78 @@ class Bot {
         this.createHealthBar();
     }
 
+    createSlendermanMesh() {
+        // Slenderman: tall, thin, black suit, faceless, long arms
+        const suitMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8, metalness: 0.1 });
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5f5dc, roughness: 0.3 }); // Pale beige skin
+        const tieMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.6 }); // Red tie
+
+        // Faceless head (smooth, no features)
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), skinMat);
+        head.position.y = 2.4; // Higher position for tall character
+        this.mesh.add(head);
+
+        // Body (tall and thin)
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.4, 0.25), suitMat);
+        body.position.y = 1.5;
+        this.mesh.add(body);
+
+        // Red tie
+        const tie = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 0.05), tieMat);
+        tie.position.set(0, 1.5, 0.14);
+        this.mesh.add(tie);
+
+        // Long thin arms - Pivots (tentacle-like)
+        const armGeo = new THREE.BoxGeometry(0.12, 1.2, 0.12); // Longer, thinner arms
+        armGeo.translate(0, -0.5, 0);
+
+        this.leftArmPivot = new THREE.Group();
+        this.leftArmPivot.position.set(-0.35, 2.0, 0);
+        this.mesh.add(this.leftArmPivot);
+        this.leftArmPivot.add(new THREE.Mesh(armGeo, suitMat));
+
+        this.rightArmPivot = new THREE.Group();
+        this.rightArmPivot.position.set(0.35, 2.0, 0);
+        this.mesh.add(this.rightArmPivot);
+        this.rightArmPivot.add(new THREE.Mesh(armGeo, suitMat));
+
+        // Legs - Pivots (long and thin)
+        const legGeo = new THREE.BoxGeometry(0.18, 1.0, 0.18);
+        legGeo.translate(0, -0.5, 0);
+
+        this.leftLegPivot = new THREE.Group();
+        this.leftLegPivot.position.set(-0.12, 0.9, 0);
+        this.mesh.add(this.leftLegPivot);
+        this.leftLegPivot.add(new THREE.Mesh(legGeo, suitMat));
+
+        this.rightLegPivot = new THREE.Group();
+        this.rightLegPivot.position.set(0.12, 0.9, 0);
+        this.mesh.add(this.rightLegPivot);
+        this.rightLegPivot.add(new THREE.Mesh(legGeo, suitMat));
+
+        this.mesh.castShadow = true;
+        this.mesh.receiveShadow = true;
+        
+        this.animTime = 0;
+        this.attackAnimTime = 0;
+        this.attackAnimDuration = 0.5;
+
+        this.createHealthBar();
+    }
+
     createHealthBar() {
         const bgGeo = new THREE.PlaneGeometry(1, 0.1);
         const bgMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
         this.healthBarBg = new THREE.Mesh(bgGeo, bgMat);
-        this.healthBarBg.position.y = 2.3;
+        // Position health bar higher for Slenderman
+        const barY = this.zombieType === 'slender' ? 3.0 : 2.3;
+        this.healthBarBg.position.y = barY;
         this.mesh.add(this.healthBarBg);
 
         const fgGeo = new THREE.PlaneGeometry(1, 0.1);
         const fgMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         this.healthBarFg = new THREE.Mesh(fgGeo, fgMat);
-        this.healthBarFg.position.y = 2.3;
+        this.healthBarFg.position.y = barY;
         this.healthBarFg.position.z = 0.01; // Slightly in front
         this.mesh.add(this.healthBarFg);
     }

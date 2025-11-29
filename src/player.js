@@ -869,6 +869,13 @@ export class Player {
             this.shield = Math.min(100, this.shield + 50);
             return;
         }
+        if (itemName === 'MedKit') {
+            const maxHealth = 100;
+            const healValue = maxHealth * 0.25; // 25% of max health
+            this.health = Math.min(maxHealth, this.health + healValue);
+            console.log(`Used MedKit from chest: +${healValue} HP`);
+            return;
+        }
         if (itemName && itemName.startsWith('Backpack:')) {
             const colorHex = itemName.split(':')[1] || '2c3e50';
             const dropColor = this.equipBackpack(parseInt(colorHex, 16));

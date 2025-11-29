@@ -48,7 +48,8 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 ## 🎲 Recursos do Jogo
 
 ### Modos de Jogo
-- **Survival / Arcade:** Loop clássico com tempestade, loot e inimigos.
+- **Survival:** Novo modo hardcore sem tempestade, sem veículos, tamanho mínimo de mapa de 100m. Apresenta variantes especiais de zumbis e recompensas de loot do céu.
+- **Arcade:** Loop clássico com tempestade, loot, inimigos e todos os recursos habilitados.
 - **Arena:** Mapa menor com cobertura densa para partidas rápidas.
 - **Matrix:** Sandbox sem inimigos para explorar e testar.
 - **Studio:** Modo criativo com construção de blocos, redimensionar, mover/remover e flutuação opcional.
@@ -75,16 +76,41 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - **Stamina:** 100 pontos - usada para socar e caminhar
 
 ### IA dos Inimigos
-- **Comportamento Inteligente:**
-  - Zumbis detectam e perseguem jogadores dentro de 25 metros
-  - Movimento lateral para evitar serem alvos fáceis
-  - Ataques corpo a corpo quando próximos (2 metros)
-  - Recebem dano da tempestade quando fora da zona segura
+
+#### Tipos de Zumbi
+- **Zumbi Normal (Roxo):**
+  - Inimigo padrão com stats base
+  - Aparece em todos os modos de combate
   
-- **Níveis de Dificuldade:**
-  - **Fácil:** 50 HP, 2 de dano, movimento lento
-  - **Médio:** 100 HP, 5 de dano, velocidade moderada
-  - **Difícil:** 150 HP, 10 de dano, rápido e agressivo
+- **Zumbi Gordo (Verde):**
+  - 50% mais vida que zumbis normais
+  - 50% mais lento
+  - Aparência visivelmente maior e mais robusta
+  - Spawna na proporção 1:1 com zumbis normais nos modos Arcade e Survival
+  
+- **Zumbi Grande (Roxo, 2x tamanho):**
+  - **Exclusivo do Modo Survival**
+  - 5x a vida de zumbis normais
+  - 2x o dano
+  - 25% mais lento
+  - Alcance de ataque maior (3.5m vs 2m)
+  - Spawna na proporção de 1 a cada 5 inimigos totais (ex: 20 inimigos = 4 Zumbis Grandes)
+
+#### Comportamento Inteligente:
+- Zumbis detectam e perseguem jogadores dentro de 25 metros
+- Verificação de linha de visão (não perseguem através de paredes)
+- Detecção de colisão com objetos do ambiente
+- Movimento lateral para evitar serem alvos fáceis
+- Ataques corpo a corpo quando próximos
+- Recebem dano da tempestade quando fora da zona segura (modo Arcade)
+- Sons de gemidos baseados em proximidade
+  
+#### Níveis de Dificuldade:
+- **Fácil:** 50 HP, 2 de dano, movimento lento
+- **Médio:** 100 HP, 5 de dano, velocidade moderada
+- **Difícil:** 150 HP, 10 de dano, rápido e agressivo
+
+*Nota: Os stats do Zumbi Grande e Zumbi Gordo são multiplicados sobre os stats base da dificuldade*
 
 ### Mecânicas da Tempestade
 - **Zona que Encolhe:** A zona segura diminui gradualmente com o tempo
@@ -100,12 +126,29 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - **Mochilas:** Colecionáveis cosméticos
 - **Interativo:** Pressione **E** para abrir baús e coletar itens
 
+#### Sistema de Loot do Céu (Arcade & Survival)
+Um sistema especial de recompensas que ativa quando você prova suas habilidades de combate:
+
+**Requisitos de Ativação:**
+- Todo o loot do chão foi coletado/aberto
+- Jogador eliminou pelo menos 30% dos zumbis totais
+
+**Recompensas:**
+- 2-3 itens aleatórios caem do céu perto do jogador
+- Drops ocorrem a cada 45 segundos uma vez ativado
+- Ajuda a sustentar longas corridas de sobrevivência
+- Mensagem no console confirma quando o sistema é ativado
+
 ### Geração de Mundo
 - **Ambiente Voxel:** Estética blocada estilo Minecraft
 - **Elementos Procedurais:**
   - Casas pequenas, padrão e grandes (Cabin/House/Mansion) mais platôs, bunkers e rampas
   - Árvores, rochas, arbustos, tufos de grama, veículos, platôs e pequenos prédios
   - Layouts de arena com caixas e rampas
+- **Geração Específica por Modo:**
+  - **Survival:** Ambiente natural limpo com apenas chão, árvores, rochas e arbustos (sem construções ou veículos)
+  - **Arcade:** Ambiente completo com todas as estruturas e veículos
+  - **Arena:** Layout compacto focado em combate
   
 ### HUD & Dashboard
 
@@ -113,6 +156,10 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - Barra de escudo (azul)
 - Barra de vida (verde)
 - Barra de stamina (dourada)
+
+**Timers (Centro Superior):**
+- **Timer da Tempestade:** Mostra tempo até a tempestade fechar completamente (apenas modo Arcade)
+- **Timer de Sobrevivência:** Rastreia seu tempo de sobrevivência no formato MM:SS (modos Arcade & Survival)
 
 **Dashboard (Superior Esquerdo):**
 - **FPS:** Contador de quadros por segundo
@@ -258,7 +305,7 @@ Os arquivos compilados estarão no diretório `dist/`.
 
 1. **Gerencie Sua Stamina:** Não fique spamando socos - você vai ficar cansado! Use armas de fogo quando possível.
 
-2. **Observe a Tempestade:** Fique de olho no timer da tempestade e permaneça dentro da zona segura.
+2. **Observe a Tempestade:** Fique de olho no timer da tempestade e permaneça dentro da zona segura (modo Arcade).
 
 3. **Explore Casas:** Colete loot de baús dentro de prédios para melhores armas e munição.
 
@@ -276,6 +323,19 @@ Os arquivos compilados estarão no diretório `dist/`.
 
 10. **Dificuldade Importa:** Comece no Fácil para aprender as mecânicas, depois aumente a dificuldade.
 
+11. **Estratégia do Modo Survival:**
+    - Sem tempestade significa que você pode explorar com calma
+    - Foque em eliminar 30% dos zumbis para desbloquear loot do céu
+    - Colete todo o loot do chão antes do limite de 30% para máximo benefício
+    - Zumbis Grandes são difíceis - guarde suas melhores armas para eles
+    
+12. **Táticas para Variantes de Zumbi:**
+    - **Zumbis Gordos (Verde):** Mais lentos mas mais resistentes - fuja deles e use fogo sustentado
+    - **Zumbis Grandes (Roxo, Grande):** Extremamente perigosos - mantenha distância, use sniper/rifle
+    - **Zumbis Normais (Roxo):** Ameaça padrão - qualquer arma funciona efetivamente
+    
+13. **Sistema de Loot do Céu:** Uma vez ativado, sobreviva por intervalos de 45 segundos para receber drops de suprimentos perto da sua posição.
+
 ## 📝 Licença
 
 Este projeto é open source e disponível para fins educacionais.
@@ -292,6 +352,14 @@ Este projeto é open source e disponível para fins educacionais.
 
 ## Novidades (Nov 2025)
 
+### Últimas Atualizações
+- **Modo Survival:** Novo modo hardcore sem tempestade, sem veículos, ambiente natural limpo (apenas árvores, rochas e arbustos), e tamanho mínimo de mapa de 100m.
+- **Variantes de Zumbi:**
+  - **Zumbi Gordo (Verde):** 50% mais vida, 50% mais lento, aparência mais robusta. Spawna 1:1 com zumbis normais em Arcade/Survival.
+  - **Zumbi Grande (Roxo, 2x tamanho):** Inimigo chefe exclusivo do Survival com 5x vida, 2x dano, 25% mais lento, alcance de ataque maior. Spawna 1 a cada 5 inimigos.
+- **Timer de Sobrevivência:** Rastreamento de sobrevivência em tempo real exibido no formato MM:SS para modos Arcade e Survival.
+- **Sistema de Loot do Céu:** Recompensa jogadores que eliminam 30%+ dos zumbis e coletam todo o loot do chão com airdrops periódicos (2-3 itens a cada 45s).
+- **IA de NPC Aprimorada:** Verificação de linha de visão, detecção de colisão com ambiente, pathfinding melhorado.
 - Música de fundo com play/pause e ajuste de volume persistente no menu.
 - PointerLock agora é ativado ao clicar no canvas para evitar travamentos acidentais a partir de elementos UI.
 - IA de wander para NPCs, chase com strafing e animações de ataque mais suaves.

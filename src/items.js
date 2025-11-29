@@ -71,6 +71,14 @@ export class ItemManager {
             const color = backpackColors[i % backpackColors.length];
             this.spawnBackpack(x, z, color);
         }
+        
+        // Spawn MedKits (health recovery)
+        for (let i = 0; i < 12; i++) {
+            let x = (Math.random() - 0.5) * this.spawnSpan;
+            let z = (Math.random() - 0.5) * this.spawnSpan;
+            ({ x, z } = this.getClampedCoord(x, z));
+            this.spawnMedKit(x, z);
+        }
     }
 
     createChest(x, y, z) {
@@ -106,7 +114,7 @@ export class ItemManager {
         chest.receiveShadow = true;
         
         // Random loot
-        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion', 'SMG', 'Shotgun', 'DMR'];
+        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion', 'SMG', 'Shotgun', 'DMR', 'MedKit'];
         const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
 
         chest.userData = { 
@@ -250,6 +258,75 @@ export class ItemManager {
         return pack;
     }
 
+    spawnMedKit(x, z) {
+        const medkit = new THREE.Group();
+        ({ x, z } = this.getClampedCoord(x, z));
+        let y = 0.5;
+        if (this.world && typeof this.world.getHeightAt === 'function') {
+            y = this.world.getHeightAt(x, z) + 0.3;
+        }
+        medkit.position.set(x, y, z);
+
+        // Main case body (white with red accents)
+        const caseBody = new THREE.Mesh(
+            new THREE.BoxGeometry(0.8, 0.5, 0.6),
+            new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.2, roughness: 0.6 })
+        );
+        medkit.add(caseBody);
+
+        // Red cross on top (horizontal bar)
+        const crossH = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 0.05, 0.15),
+            new THREE.MeshStandardMaterial({ color: 0xe74c3c, metalness: 0.1, roughness: 0.4 })
+        );
+        crossH.position.y = 0.28;
+        medkit.add(crossH);
+
+        // Red cross on top (vertical bar)
+        const crossV = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 0.05, 0.5),
+            new THREE.MeshStandardMaterial({ color: 0xe74c3c, metalness: 0.1, roughness: 0.4 })
+        );
+        crossV.position.y = 0.28;
+        medkit.add(crossV);
+
+        // Handle on top
+        const handle = new THREE.Mesh(
+            new THREE.BoxGeometry(0.6, 0.1, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x95a5a6, metalness: 0.4, roughness: 0.5 })
+        );
+        handle.position.y = 0.35;
+        medkit.add(handle);
+
+        // Latch detail
+        const latch = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 0.08, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x7f8c8d, metalness: 0.5, roughness: 0.4 })
+        );
+        latch.position.set(0, 0, 0.32);
+        medkit.add(latch);
+
+        medkit.castShadow = true;
+        medkit.receiveShadow = true;
+
+        const glow = this.createGlowEffect();
+        glow.position.y = 0.6;
+        medkit.add(glow);
+        
+        medkit.userData = {
+            type: 'medkit',
+            gameId: this.generateID(),
+            gameName: 'MedKit',
+            healAmount: 25, // 25% of max health
+            isOpened: false,
+            glow
+        };
+
+        this.scene.add(medkit);
+        this.items.push(medkit);
+        return medkit;
+    }
+
     spawnMatrixLoadout(cx = 0, cz = 0) {
         // Layout items around player for quick testing
         const ring = [
@@ -333,7 +410,7 @@ export class ItemManager {
         }
 
         // Random loot choice
-        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion', 'SMG', 'Shotgun', 'DMR'];
+        const lootTable = ['Rifle', 'Sniper', 'Pistol', 'ShieldPotion', 'SMG', 'Shotgun', 'DMR', 'MedKit'];
         const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
 
         const chest = this.spawnChestWithLoot(x, z, loot);
@@ -418,6 +495,8 @@ export class ItemManager {
                 this.interactionPrompt.innerText = `Press E to open (Contains: ${data.loot})`;
             } else if (data.type === 'stamina') {
                 this.interactionPrompt.innerText = `Press E to collect ${data.gameName} (+${data.amount} Stamina)`;
+            } else if (data.type === 'medkit') {
+                this.interactionPrompt.innerText = `Press E to use ${data.gameName} (+${data.healAmount}% Health)`;
             } else if (data.type === 'backpack') {
                 const color = data.color ? '#' + data.color.toString(16).padStart(6, '0') : '';
                 this.interactionPrompt.innerText = `Press E to equip Backpack ${color}`;
@@ -455,6 +534,18 @@ export class ItemManager {
                 // Mark removed so it's ignored
                 data.isOpened = true;
                 console.log(`Picked up stamina item: +${amount}`);
+            } else if (data.type === 'medkit') {
+                // MedKit pickup -- heal player by 25% of max health
+                const healAmount = data.healAmount || 25;
+                if (this.player) {
+                    const maxHealth = 100;
+                    const healValue = (maxHealth * healAmount) / 100;
+                    this.player.health = Math.min(maxHealth, this.player.health + healValue);
+                    console.log(`Used MedKit: +${healValue} HP (${healAmount}%)`);
+                }
+                // Remove medkit
+                this.scene.remove(this.currentItem);
+                data.isOpened = true;
             } else if (data.type === 'backpack') {
                 const color = data.color || 0x2c3e50;
                 if (this.player && typeof this.player.collectItem === 'function') {
