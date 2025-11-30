@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export function createVehicleElement(type = "car") {
+export function createVehicleElement(type = "car", color = null) {
   const vehicleGroup = new THREE.Group();
   vehicleGroup.rotation.y = Math.random() * Math.PI * 2; // Random rotation
   const wheelRadius = type === "truck" ? 0.45 : 0.35;
@@ -19,8 +19,9 @@ export function createVehicleElement(type = "car") {
     const palette = [
       0x1976d2, 0xf2f2f2, 0x111111, 0x8b1a1a, 0xe53935, 0xf1c40f,
     ];
+    const bodyColor = color !== null ? color : palette[Math.floor(Math.random() * palette.length)];
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: palette[Math.floor(Math.random() * palette.length)],
+      color: bodyColor,
       metalness: 0.45,
       roughness: 0.38,
     });
@@ -190,8 +191,9 @@ export function createVehicleElement(type = "car") {
     const palette = [
       0x1e3a5f, 0xf2f2f2, 0x111111, 0x8b1a1a, 0xe53935, 0xf1c40f,
     ];
+    const bodyColor = color !== null ? color : palette[Math.floor(Math.random() * palette.length)];
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: palette[Math.floor(Math.random() * palette.length)],
+      color: bodyColor,
       metalness: 0.55,
       roughness: 0.42,
     });

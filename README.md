@@ -52,7 +52,7 @@ Voxel Fortnite is a browser-based 3D survival game where you must eliminate all 
 - **Arcade:** Classic loop with storm, loot, enemies, and all features enabled.
 - **Arena:** Smaller map with dense cover for faster matches.
 - **Matrix:** Sandbox with no enemies for exploration and testing.
-- **Studio:** Creative mode with block building, scaling, move/remove tools and optional floating toggle.
+- **Studio:** Creative mode with block building, scaling, move/remove tools and optional floating toggle. Includes all prefabs: Houses, Mansions, Cabins, Small Buildings, Plateaus, Rocks, Trees (Oak/Pine), Vehicles (Car/Truck/Bus/Motorcycle), Crates, and NPC spawning.
 
 ### Combat System
 - **6 Weapon Types:**
@@ -157,12 +157,15 @@ A special reward system that activates when you've proven your combat skills:
 - **Voxel Environment:** Minecraft-style blocky aesthetics
 - **Procedural Elements:**
   - Large/small houses labeled as House/Mansion/Cabin plus plateaus, bunkers, ramps
-  - Trees, rocks, bushes, grass clumps, vehicles, plateaus, small buildings
+  - Trees (Oak, Pine), rocks, bushes, grass clumps
+  - **Vehicles:** Cars, Trucks, Buses, Motorcycles
+  - Plateaus, small buildings
   - Arena layouts with crates and ramps
 - **Mode-Specific Generation:**
   - **Survival:** Clean natural environment with only ground, trees, rocks, and bushes (no buildings or vehicles)
   - **Arcade:** Full environment with all structures and vehicles
   - **Arena:** Compact combat-focused layout
+  - **Studio:** Creative mode with building tools and all prefabs available
   
 ### HUD & Dashboard
 
@@ -195,6 +198,35 @@ A special reward system that activates when you've proven your combat skills:
 - Minimap with player marker (toggleable)
 - Storm timer indicator
 - Touch controls for mobile (auto-enable or via settings)
+
+## 🎨 Object Viewer
+
+A standalone 3D asset inspector for viewing and customizing all game objects:
+
+**Access:** Open `object-viewer.html` in your browser
+
+**Features:**
+- **Interactive 3D View:** Rotate, zoom, and inspect all game objects
+- **Categories:**
+  - **Characters:** Male and Female player models with customization
+  - **Enemies:** All zombie types and spider with animations
+  - **Vehicles:** Car, Truck, Bus, Motorcycle with color options
+  - **Buildings:** Houses, Mansions, Cabins, Small Buildings, Plateaus
+  - **Nature:** Oak Trees, Pine Trees, Bushes (scalable)
+  - **Rocks:** Various rock formations
+
+**Player Customization:**
+- **Male Player:** Shirt color, mouth style, hat, glasses, weapons
+- **Female Player:** Shirt color, hair color, 4 hair styles (Long, Ponytail, Bun, Short), earrings, glasses, weapons
+
+**Animations:** All characters and enemies support Idle, Walk, Attack, and Jump animations
+
+**Controls:**
+- Mouse drag to rotate
+- Scroll to zoom
+- Zoom slider for precise control
+- Animation speed control
+- Object-specific customization panels
 
 ## ⚙️ Settings & Customization
 

@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
-export function createHouseElement(scale = 1) {
+export function createHouseElement(scale = 1, wallColor = 0xbdc3c7, roofColor = 0x7f8c8d) {
   const houseGroup = new THREE.Group();
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, roughness: 0.9 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, roughness: 0.7, metalness: 0.1 });
+  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.7, metalness: 0.1 });
 
   const walls = [
     { x: 0, y: 2, z: -3, w: 6, h: 4, d: 0.4 },

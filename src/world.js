@@ -13,6 +13,8 @@ import { createHouseElement } from './objects/houseElement.js';
 import { createSmallBuildingElement } from './objects/smallBuildingElement.js';
 import { createPlateauElement } from './objects/plateauElement.js';
 import { createVehicleElement } from './objects/vehicleElement.js';
+import { createBus } from './objects/busElement.js';
+import { createMotorcycle } from './objects/motorcycleElement.js';
 
 export const DEFAULT_MAP_SIZE = 400;
 
@@ -667,7 +669,16 @@ export class World {
     }
 
     createVehicle(x, z, type = 'car') {
-        const vehicleGroup = createVehicleElement(type);
+        let vehicleGroup;
+        
+        if (type === 'bus') {
+            vehicleGroup = createBus();
+        } else if (type === 'motorcycle') {
+            vehicleGroup = createMotorcycle();
+        } else {
+            vehicleGroup = createVehicleElement(type);
+        }
+        
         vehicleGroup.position.set(x, 0, z);
         return vehicleGroup;
     }

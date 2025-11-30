@@ -52,7 +52,7 @@ Voxel Fortnite é um jogo de sobrevivência 3D baseado em navegador onde você d
 - **Arcade:** Loop clássico com tempestade, loot, inimigos e todos os recursos habilitados.
 - **Arena:** Mapa menor com cobertura densa para partidas rápidas.
 - **Matrix:** Sandbox sem inimigos para explorar e testar.
-- **Studio:** Modo criativo com construção de blocos, redimensionar, mover/remover e flutuação opcional.
+- **Studio:** Modo criativo com construção de blocos, redimensionar, mover/remover e flutuação opcional. Inclui todos os prefabs: Casas, Mansões, Cabanas, Prédios Pequenos, Planaltos, Rochas, Árvores (Carvalho/Pinheiro), Veículos (Carro/Caminhão/Ônibus/Motocicleta), Caixotes e spawn de NPCs.
 
 ### Sistema de Combate
 - **6 Tipos de Armas:**
@@ -156,14 +156,22 @@ Um sistema especial de recompensas que ativa quando você prova suas habilidades
 ### Geração de Mundo
 - **Ambiente Voxel:** Estética blocada estilo Minecraft
 - **Elementos Procedurais:**
-  - Casas pequenas, padrão e grandes (Cabin/House/Mansion) mais platôs, bunkers e rampas
-  - Árvores, rochas, arbustos, tufos de grama, veículos, platôs e pequenos prédios
-  - Layouts de arena com caixas e rampas
+  - Casas grandes/pequenas rotuladas como Casa/Mansão/Cabana mais planaltos, bunkers, rampas
+  - Árvores (Carvalho, Pinheiro), rochas, arbustos, tufos de grama
+  - **Veículos:** Carros, Caminhões, Ônibus, Motocicletas
+  - Planaltos, prédios pequenos
+  - Layouts de arena com caixotes e rampas
 - **Geração Específica por Modo:**
   - **Survival:** Ambiente natural limpo com apenas chão, árvores, rochas e arbustos (sem construções ou veículos)
   - **Arcade:** Ambiente completo com todas as estruturas e veículos
   - **Arena:** Layout compacto focado em combate
-  
+  - **Studio:** Modo criativo com ferramentas de construção e todos os prefabs disponíveis
+
+### Visualizador de Objetos
+- **Modo de Inspeção:** Pressione **F** para inspecionar o objeto sob a mira
+- **Informações Detalhadas:** Exibe nome, ID, tipo e outras propriedades do objeto
+- **Útil para Debug:** Ajuda a entender a estrutura do mundo e identificar elementos
+
 ### HUD & Dashboard
 
 **Barras de Status (Inferior Esquerdo):**
@@ -195,6 +203,35 @@ Um sistema especial de recompensas que ativa quando você prova suas habilidades
 - Minimap com marcador do jogador (ativável/desativável)
 - Indicador de tempo da tempestade
 - Controles touch para mobile (auto ou via configurações)
+
+## 🎨 Visualizador de Objetos
+
+Um inspetor 3D standalone para visualizar e customizar todos os objetos do jogo:
+
+**Acesso:** Abra `object-viewer.html` no seu navegador
+
+**Recursos:**
+- **Visualização 3D Interativa:** Rotacione, dê zoom e inspecione todos os objetos do jogo
+- **Categorias:**
+  - **Personagens:** Modelos de jogador Masculino e Feminino com customização
+  - **Inimigos:** Todos os tipos de zumbis e aranha com animações
+  - **Veículos:** Carro, Caminhão, Ônibus, Motocicleta com opções de cor
+  - **Construções:** Casas, Mansões, Cabanas, Prédios Pequenos, Planaltos
+  - **Natureza:** Árvores de Carvalho, Árvores de Pinheiro, Arbustos (escaláveis)
+  - **Rochas:** Várias formações rochosas
+
+**Customização de Personagens:**
+- **Jogador Masculino:** Cor da camisa, estilo de boca, chapéu, óculos, armas
+- **Jogadora Feminina:** Cor da camisa, cor do cabelo, 4 estilos de cabelo (Longo, Rabo de Cavalo, Coque, Curto), brincos, óculos, armas
+
+**Animações:** Todos os personagens e inimigos suportam animações Idle, Walk, Attack e Jump
+
+**Controles:**
+- Arrastar mouse para rotacionar
+- Scroll para zoom
+- Slider de zoom para controle preciso
+- Controle de velocidade de animação
+- Painéis de customização específicos por objeto
 
 ## ⚙️ Configurações & Personalização
 
