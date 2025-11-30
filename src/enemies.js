@@ -62,11 +62,19 @@ export class EnemyManager {
         } catch(e) {}
     }
 
-    spawnEnemy(force = false) {
+    spawnEnemy(force = false, enemyType = null) {
         if (!force && (this.gameMode === 'matrix' || this.gameMode === 'studio')) return;
         const spawnSpan = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
         let x = (Math.random() - 0.5) * spawnSpan;
         let z = (Math.random() - 0.5) * spawnSpan;
+        
+        // Studio mode: spawn near player
+        if (this.gameMode === 'studio' && this.player) {
+            const offset = 5;
+            x = this.player.position.x + (Math.random() - 0.5) * offset;
+            z = this.player.position.z + (Math.random() - 0.5) * offset;
+        }
+        
         // Matrix AI Builder: ensure enemies spawn far (>= mapHalfSize * 0.6 away from player)
         if (this.gameMode === 'matrix-ai' && this.player) {
             const minDist = (this.world && this.world.halfMapSize ? this.world.halfMapSize : 100) * 0.6;
@@ -88,41 +96,49 @@ export class EnemyManager {
         
         // Determine zombie type
         let isBig = false;
-        let zombieType = 'normal'; // 'normal', 'fat', 'big', or 'slender'
+        let zombieType = enemyType || 'normal'; // Use provided type or default to 'normal'
         
-        if (this.gameMode === 'survival') {
-            // Count existing zombies by type
-            const bigCount = this.enemies.filter(e => e.isBig).length;
-            const slenderCount = this.enemies.filter(e => e.zombieType === 'slender').length;
-            
-            // Calculate allowed big zombies based on total target count (1 per 5)
-            const allowedBig = Math.floor(this.targetCount / 5);
-            // Calculate allowed slenderman (1 per 10)
-            const allowedSlender = Math.floor(this.targetCount / 10);
-            
-            if (bigCount < allowedBig) {
-                isBig = true;
-                zombieType = 'big';
-            } else if (slenderCount < allowedSlender) {
-                zombieType = 'slender';
-            } else {
-                // For remaining zombies, alternate between normal and fat (1:1 ratio)
-                const normalCount = this.enemies.filter(e => !e.isBig && e.zombieType === 'normal').length;
-                const fatCount = this.enemies.filter(e => !e.isBig && e.zombieType === 'fat').length;
-                zombieType = fatCount < normalCount ? 'fat' : 'normal';
+        // If no specific type provided, use game mode logic
+        if (!enemyType) {
+            if (this.gameMode === 'survival') {
+                // Count existing zombies by type
+                const bigCount = this.enemies.filter(e => e.isBig).length;
+                const slenderCount = this.enemies.filter(e => e.zombieType === 'slender').length;
+                
+                // Calculate allowed big zombies based on total target count (1 per 5)
+                const allowedBig = Math.floor(this.targetCount / 5);
+                // Calculate allowed slenderman (1 per 10)
+                const allowedSlender = Math.floor(this.targetCount / 10);
+                
+                if (bigCount < allowedBig) {
+                    isBig = true;
+                    zombieType = 'big';
+                } else if (slenderCount < allowedSlender) {
+                    zombieType = 'slender';
+                } else {
+                    // For remaining zombies, alternate between normal and fat (1:1 ratio)
+                    const normalCount = this.enemies.filter(e => !e.isBig && e.zombieType === 'normal').length;
+                    const fatCount = this.enemies.filter(e => !e.isBig && e.zombieType === 'fat').length;
+                    zombieType = fatCount < normalCount ? 'fat' : 'normal';
+                }
+            } else if (this.gameMode === 'arcade') {
+                // Count slenderman
+                const slenderCount = this.enemies.filter(e => e.zombieType === 'slender').length;
+                const allowedSlender = Math.floor(this.targetCount / 10);
+                
+                if (slenderCount < allowedSlender) {
+                    zombieType = 'slender';
+                } else {
+                    // In arcade mode, alternate between normal and fat (1:1 ratio)
+                    const normalCount = this.enemies.filter(e => e.zombieType === 'normal').length;
+                    const fatCount = this.enemies.filter(e => e.zombieType === 'fat').length;
+                    zombieType = fatCount < normalCount ? 'fat' : 'normal';
+                }
             }
-        } else if (this.gameMode === 'arcade') {
-            // Count slenderman
-            const slenderCount = this.enemies.filter(e => e.zombieType === 'slender').length;
-            const allowedSlender = Math.floor(this.targetCount / 10);
-            
-            if (slenderCount < allowedSlender) {
-                zombieType = 'slender';
-            } else {
-                // In arcade mode, alternate between normal and fat (1:1 ratio)
-                const normalCount = this.enemies.filter(e => e.zombieType === 'normal').length;
-                const fatCount = this.enemies.filter(e => e.zombieType === 'fat').length;
-                zombieType = fatCount < normalCount ? 'fat' : 'normal';
+        } else {
+            // If specific type provided, set isBig flag for big zombies
+            if (zombieType === 'big') {
+                isBig = true;
             }
         }
 
@@ -131,10 +147,43 @@ export class EnemyManager {
         enemy.deathBuffer = this.deathBuffer; // Pass death buffer
         enemy.groanBuffer = this.groanBuffer; // Pass groan buffer
         enemy.world = this.world;
-        this.enemies.push(enemy);
-        if (force && this.gameMode === 'studio') {
-            this.studioAiEnabled = true;
+        
+        // Studio mode: disable AI, keep idle only
+        if (this.gameMode === 'studio') {
+            enemy.studioMode = true;
+            enemy.isStudioNPC = true;
         }
+        
+        this.enemies.push(enemy);
+        
+        if (force && this.gameMode === 'studio') {
+            this.studioAiEnabled = false; // Keep AI disabled in studio
+        }
+        
+        return enemy;
+    }
+
+    spawnEnemyAt(x, z, type = 'normal') {
+        const groundY = (this.world && typeof this.world.getHeightAt === 'function') ? this.world.getHeightAt(x, z) : 0;
+        const mapHalfSize = (this.world && this.world.halfMapSize) ? this.world.halfMapSize : 100;
+        
+        let isBig = false;
+        let zombieType = type;
+        
+        if (zombieType === 'big') isBig = true;
+
+        const enemy = new Bot(this.scene, x, groundY, z, this.difficulty, mapHalfSize, this.player, isBig, zombieType);
+        enemy.audioCtx = this.audioCtx;
+        enemy.deathBuffer = this.deathBuffer;
+        enemy.groanBuffer = this.groanBuffer;
+        enemy.world = this.world;
+        
+        // Always studio mode for manual placement
+        enemy.studioMode = true;
+        enemy.isStudioNPC = true;
+        
+        this.enemies.push(enemy);
+        return enemy;
     }
 
     setTargetCount(count) {
@@ -301,6 +350,8 @@ class Bot {
             zombieData = createBigZombie(this.scene, x, y, z);
         } else if (this.zombieType === 'fat') {
             zombieData = createFatZombie(this.scene, x, y, z);
+        } else if (this.zombieType === 'spider') {
+            zombieData = createSpider(this.scene, x, y, z);
         } else {
             zombieData = createNormalZombie(this.scene, x, y, z);
         }
@@ -364,6 +415,14 @@ class Bot {
         // Update Health Bar Rotation (Look at camera)
         this.healthBarBg.lookAt(playerPos);
         this.healthBarFg.lookAt(playerPos);
+
+        // Studio Mode: Skip AI, only play idle animation
+        if (this.studioMode || this.isStudioNPC) {
+            // Just play idle animation
+            this.animTime += dt;
+            this.animateIdle();
+            return;
+        }
 
         const dist = this.position.distanceTo(playerPos);
         

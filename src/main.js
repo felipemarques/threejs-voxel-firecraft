@@ -1451,8 +1451,33 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
                     }
                     return;
                 } else if (action === 'spawn-npc') {
-                    if (this.enemyManager && typeof this.enemyManager.spawnEnemy === 'function') {
-                        this.enemyManager.spawnEnemy(true);
+                    // Select NPC tool for placement
+                    const npcType = btn.getAttribute('data-npc-type') || 'normal';
+                    this.studioSelectedPrefab = 'npc';
+                    this.studioSelectedOptions = { type: npcType };
+                    
+                    // Hide look area
+                    this.toggleTouchLookArea(false);
+                    
+                    // Close submenu
+                    const menu = document.getElementById('npc-menu');
+                    if (menu) menu.classList.add('hidden');
+                    
+                    return;
+                } else if (action === 'remove-npc') {
+                    // Toggle NPC removal mode
+                    this.studioRemoveNPCMode = !this.studioRemoveNPCMode;
+                    btn.style.background = this.studioRemoveNPCMode ? '#e74c3c' : '';
+                    btn.textContent = this.studioRemoveNPCMode ? 'Remove NPC (Active)' : 'Remove NPC';
+                    
+                    // Clear any other studio selection
+                    if (this.studioRemoveNPCMode) {
+                        this.studioSelectedPrefab = null;
+                        this.studioSelectedOptions = null;
+                        if (this.player && this.player.studioSelectionHelper) {
+                            try { this.player.scene.remove(this.player.studioSelectionHelper); } catch (e) {}
+                            this.player.studioSelectionHelper = null;
+                        }
                     }
                     return;
                 } else if (action === 'drops') {
@@ -1491,6 +1516,20 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
             btn.addEventListener('pointerdown', safeHandler);
             btn.addEventListener('click', (e) => { e && e.preventDefault && e.preventDefault(); handler(e); });
         });
+
+        // Minimize button handler
+        const minBtn = document.getElementById('studio-minimize-btn');
+        if (minBtn) {
+            minBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const grid = document.querySelector('#studio-palette .palette-grid');
+                if (grid) {
+                    grid.classList.toggle('hidden');
+                    minBtn.textContent = grid.classList.contains('hidden') ? '+' : '_';
+                }
+            });
+        }
     }
 
     setupObjectInspector() {
@@ -1513,6 +1552,34 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
             if (mode === 'matrix') return;
 
             // Studio click-to-place prefab
+            // Studio Mode: Remove NPC on click
+            if (mode === 'studio' && this.studioRemoveNPCMode) {
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+                const ray = new THREE.Raycaster();
+                ray.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+                
+                // Check if we clicked on an NPC
+                if (this.enemyManager && this.enemyManager.enemies) {
+                    for (let i = this.enemyManager.enemies.length - 1; i >= 0; i--) {
+                        const enemy = this.enemyManager.enemies[i];
+                        if (enemy.mesh) {
+                            const hits = ray.intersectObject(enemy.mesh, true);
+                            if (hits.length > 0) {
+                                // Remove this NPC
+                                this.scene.remove(enemy.mesh);
+                                this.enemyManager.enemies.splice(i, 1);
+                                console.log('Removed NPC');
+                                return;
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+
+            // Studio Mode: Place prefab
             if (mode === 'studio' && this.studioSelectedPrefab) {
                 const rect = canvas.getBoundingClientRect();
                 const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1539,16 +1606,27 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
                         }
                     }
                 }
-                if (groundHit && typeof this.world.spawnPrefab === 'function') {
-                    const opts = this.studioSelectedOptions || {};
-                    this.world.spawnPrefab(this.studioSelectedPrefab, groundHit.point.x, groundHit.point.z, opts);
+
+                if (groundHit) {
+                    if (this.studioSelectedPrefab === 'npc') {
+                        // Spawn NPC at clicked location
+                        if (this.enemyManager && typeof this.enemyManager.spawnEnemyAt === 'function') {
+                            const type = this.studioSelectedOptions ? this.studioSelectedOptions.type : 'normal';
+                            this.enemyManager.spawnEnemyAt(groundHit.point.x, groundHit.point.z, type);
+                        }
+                    } else if (typeof this.world.spawnPrefab === 'function') {
+                        const opts = this.studioSelectedOptions || {};
+                        this.world.spawnPrefab(this.studioSelectedPrefab, groundHit.point.x, groundHit.point.z, opts);
+                    }
                 }
+                
                 // Clear selection and restore look area
                 this.studioSelectedPrefab = null;
                 this.studioSelectedOptions = null;
                 this.toggleTouchLookArea(true);
                 return;
             }
+
 
             let ndcX = 0;
             let ndcY = 0;

@@ -507,7 +507,11 @@
 
     <!-- Studio palette (global, not tied to touch controls) -->
     <div id="studio-palette" class="hidden" aria-label="Studio Palette">
-        <div class="palette-title">STUDIO TOOLS</div>
+        <div class="palette-title">
+            STUDIO TOOLS
+            <button id="studio-minimize-btn"
+                style="float: right; background: none; border: none; color: white; cursor: pointer;">_</button>
+        </div>
         <div class="palette-grid">
             <button id="studio-resume-btn" data-action="resume">Resume & Lock</button>
             <button id="float-btn" data-action="float-toggle">FLOAT</button>
@@ -534,7 +538,17 @@
                 </div>
             </div>
             <button data-prefab="crate">Crate</button>
-            <button data-action="spawn-npc">Add NPC</button>
+            <div class="palette-submenu">
+                <button data-action="npc-menu" data-submenu="npc-menu">Add NPC ▾</button>
+                <div id="npc-menu" class="submenu hidden">
+                    <button data-action="spawn-npc" data-npc-type="normal">Normal Zombie</button>
+                    <button data-action="spawn-npc" data-npc-type="fat">Fat Zombie</button>
+                    <button data-action="spawn-npc" data-npc-type="big">Big Zombie</button>
+                    <button data-action="spawn-npc" data-npc-type="slender">Slenderman</button>
+                    <button data-action="spawn-npc" data-npc-type="spider">Spider</button>
+                </div>
+            </div>
+            <button data-action="remove-npc">Remove NPC</button>
             <button data-action="drops">Rain Loot (L)</button>
             <button data-action="menu">Menu</button>
             <button data-action="quit">Quit Game</button>
