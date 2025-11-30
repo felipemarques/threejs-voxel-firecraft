@@ -1467,6 +1467,7 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
                 } else if (action === 'remove-npc') {
                     // Toggle NPC removal mode
                     this.studioRemoveNPCMode = !this.studioRemoveNPCMode;
+                    this.studioMoveMode = false; // Disable move mode
                     btn.style.background = this.studioRemoveNPCMode ? '#e74c3c' : '';
                     btn.textContent = this.studioRemoveNPCMode ? 'Remove NPC (Active)' : 'Remove NPC';
                     
@@ -1480,6 +1481,23 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
                         }
                     }
                     return;
+                } else if (action === 'move-tool') {
+                    // Toggle Move Mode
+                    this.studioMoveMode = !this.studioMoveMode;
+                    this.studioRemoveNPCMode = false; // Disable remove mode
+                    btn.style.background = this.studioMoveMode ? '#3498db' : '';
+                    btn.textContent = this.studioMoveMode ? 'Move Tool (Active)' : 'Move Tool';
+                    
+                    // Clear other selections
+                    if (this.studioMoveMode) {
+                        this.studioSelectedPrefab = null;
+                        this.studioSelectedOptions = null;
+                        this.toggleTouchLookArea(false); // Disable look area to allow dragging
+                    } else {
+                        this.toggleTouchLookArea(true);
+                    }
+                    return;
+                } else if (action === 'drops') {
                 } else if (action === 'drops') {
                     this.spawnStudioDrops();
                     return;
@@ -1544,6 +1562,102 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
             } catch (e) {}
         }
         this._objectClickTarget = canvas;
+
+        // Studio Drag & Drop Logic
+        const onPointerDown = (event) => {
+            if (!this.studioMoveMode || this.player.gameMode !== 'studio') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+            
+            // Check NPCs
+            let hitObj = null;
+            if (this.enemyManager && this.enemyManager.enemies) {
+                for (const enemy of this.enemyManager.enemies) {
+                    if (enemy.mesh) {
+                        const hits = ray.intersectObject(enemy.mesh, true);
+                        if (hits.length > 0) {
+                            hitObj = enemy.mesh;
+                            // Find root mesh if hit child
+                            while(hitObj.parent && hitObj.parent.type !== 'Scene') {
+                                hitObj = hitObj.parent;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Check World Objects if no NPC hit
+            if (!hitObj) {
+                const hits = ray.intersectObjects(this.world.objects, true);
+                for (const h of hits) {
+                    if (h.object.userData && h.object.userData.gameName !== 'Ground') {
+                        hitObj = h.object;
+                         // Find root object
+                        while(hitObj.parent && hitObj.parent.type !== 'Scene') {
+                            hitObj = hitObj.parent;
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            if (hitObj) {
+                this.studioDraggedObject = hitObj;
+                this.studioIsDragging = true;
+                if (this.player.controls) this.player.controls.enabled = false; // Disable camera
+            }
+        };
+
+        const onPointerMove = (event) => {
+            if (!this.studioIsDragging || !this.studioDraggedObject) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+            
+            const hits = ray.intersectObjects(this.world.objects, true);
+            for (const h of hits) {
+                if (h.object.userData && h.object.userData.gameName === 'Ground') {
+                    // Move object to new position
+                    this.studioDraggedObject.position.x = h.point.x;
+                    this.studioDraggedObject.position.z = h.point.z;
+                    
+                    // Update Y based on terrain
+                    if (this.world && typeof this.world.getHeightAt === 'function') {
+                        this.studioDraggedObject.position.y = this.world.getHeightAt(h.point.x, h.point.z);
+                    }
+                    
+                    // Update NPC internal position if it is an NPC
+                    if (this.enemyManager) {
+                        const enemy = this.enemyManager.enemies.find(e => e.mesh === this.studioDraggedObject);
+                        if (enemy) {
+                            enemy.position.copy(this.studioDraggedObject.position);
+                        }
+                    }
+                    break;
+                }
+            }
+        };
+
+        const onPointerUp = () => {
+            if (this.studioIsDragging) {
+                this.studioIsDragging = false;
+                this.studioDraggedObject = null;
+                if (this.player.controls) this.player.controls.enabled = true; // Re-enable camera
+            }
+        };
+
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointermove', onPointerMove);
+        canvas.addEventListener('pointerup', onPointerUp);
+        canvas.addEventListener('pointerleave', onPointerUp);
 
         this._objectClickHandler = (event) => {
             if (!this.player || !this.hud) return;
