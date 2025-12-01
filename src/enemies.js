@@ -367,7 +367,8 @@ class Bot {
         // Set userData
         this.mesh.userData = { 
             gameId: Math.random().toString(36).substr(2, 9).toUpperCase(), 
-            gameName: zombieName 
+            gameName: zombieName,
+            isNPC: true  // Mark as NPC for selection
         };
 
         this.animTime = 0;

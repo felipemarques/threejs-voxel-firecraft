@@ -1495,6 +1495,10 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
                         this.toggleTouchLookArea(false); // Disable look area to allow dragging
                     } else {
                         this.toggleTouchLookArea(true);
+                        // Clear selection highlight when deactivating
+                        if (this.player && typeof this.player.setStudioSelection === 'function') {
+                            this.player.setStudioSelection(null);
+                        }
                     }
                     return;
                 } else if (action === 'drops') {
@@ -1565,6 +1569,80 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
 
         // Studio Drag & Drop Logic
         const onPointerDown = (event) => {
+            // Selection highlight works in any studio mode click
+            if (this.player && this.player.gameMode === 'studio') {
+                const rect = canvas.getBoundingClientRect();
+                const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+                const ray = new THREE.Raycaster();
+                ray.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+                
+                // Check all scene objects (including NPCs which are added directly to scene)
+                let hitObj = null;
+                const allObjects = [];
+                
+                // Add world objects
+                if (this.world && this.world.objects) {
+                    allObjects.push(...this.world.objects);
+                }
+                
+                // Add NPC meshes directly
+                if (this.enemyManager && this.enemyManager.enemies) {
+                    console.log('[DEBUG] Enemies in scene:', this.enemyManager.enemies.map(e => e.mesh?.userData?.gameName || 'Unknown'));
+                    for (const enemy of this.enemyManager.enemies) {
+                        if (enemy.mesh) {
+                            allObjects.push(enemy.mesh);
+                        }
+                    }
+                }
+                
+                // Perform raycast on all objects
+                const hits = ray.intersectObjects(allObjects, true);
+                console.log('[DEBUG] Raycast hits:', hits.length, 'objects. Checking each hit...');
+                
+                for (const hit of hits) {
+                    let obj = hit.object;
+                    console.log('[DEBUG] Hit object:', obj.type, obj.userData);
+                    
+                    // Find root object by going up the hierarchy
+                    while (obj.parent && obj.parent.type !== 'Scene') {
+                        obj = obj.parent;
+                    }
+                    
+                    console.log('[DEBUG] Root object:', obj.type, obj.userData);
+                    
+                    // Skip ground
+                    if (obj.userData && obj.userData.gameName === 'Ground') {
+                        console.log('[DEBUG] Skipping ground');
+                        continue;
+                    }
+                    
+                    // Found a valid object
+                    if (obj.userData && (obj.userData.isNPC || obj.userData.gameName)) {
+                        console.log('[DEBUG] FOUND VALID OBJECT!', obj.userData.gameName, 'isNPC:', obj.userData.isNPC);
+                        hitObj = obj;
+                        break;
+                    } else {
+                        console.log('[DEBUG] Object has no valid userData, skipping');
+                    }
+                }
+                
+                if (hitObj) {
+                    console.log('[DEBUG] Setting selection for:', hitObj.userData.gameName);
+                    // Set selection highlight
+                    if (this.player && typeof this.player.setStudioSelection === 'function') {
+                        this.player.setStudioSelection(hitObj);
+                        console.log('[DEBUG] setStudioSelection called successfully');
+                    }
+                } else {
+                    // Clear selection if clicked on empty space
+                    if (this.player && typeof this.player.setStudioSelection === 'function') {
+                        this.player.setStudioSelection(null);
+                    }
+                }
+            }
+            
+            // Move Tool drag functionality (only when Move Tool is active)
             if (!this.studioMoveMode || this.player.gameMode !== 'studio') return;
             
             const rect = canvas.getBoundingClientRect();
@@ -1610,6 +1688,11 @@ Constraints: numbers are in meters, keep |x|,|z| <= 150, size in [0.2, 40]. No f
                 this.studioDraggedObject = hitObj;
                 this.studioIsDragging = true;
                 if (this.player.controls) this.player.controls.enabled = false; // Disable camera
+                
+                // Add selection highlight
+                if (this.player && typeof this.player.setStudioSelection === 'function') {
+                    this.player.setStudioSelection(hitObj);
+                }
             }
         };
 

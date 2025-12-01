@@ -435,6 +435,20 @@
                 <button onclick="toggleDayNight()">Day/Night</button>
             </div>
         </div>
+
+        <div class="control-group">
+            <label>Debug</label>
+            <div style="margin-top: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" id="show-bounding-box" onchange="toggleBoundingBox()"
+                        style="margin-right: 8px;">
+                    Show Bounding Box
+                </label>
+            </div>
+            <div style="margin-top: 10px; border-top: 1px solid #555; padding-top: 10px;">
+                <button onclick="exportGLTF()" style="width: 100%; background: #e67e22;">Export GLTF</button>
+            </div>
+        </div>
     </div>
 
     <div id="canvas-container"></div>
@@ -444,6 +458,7 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
         import { objectRegistry } from './src/objects/objectRegistry.js';
 
         // Static imports for build compatibility
@@ -703,7 +718,7 @@
 
             const list = document.createElement('div');
             list.className = 'object-list';
-            if (category === 'enemies') list.classList.add('active'); // Default open
+            if (category === 'characters') list.classList.add('active'); // Default open
 
             title.onclick = () => {
                 document.querySelectorAll('.object-list').forEach(l => l.classList.remove('active'));
@@ -724,6 +739,7 @@
             objectRegistry[category].forEach(obj => {
                 const item = document.createElement('div');
                 item.className = 'object-item';
+                item.dataset.id = obj.id; // Add ID for programmatic selection
                 item.innerHTML = `<span class="icon">📦</span> ${obj.name}`;
                 item.onclick = () => loadObject(obj);
                 list.appendChild(item);
@@ -855,6 +871,17 @@
                     throw new Error('Object format not recognized (must be Object3D or have .mesh property)');
                 }
 
+                // Auto-align to ground
+                // We want the bottom of the object to be at y=0
+                const box = new THREE.Box3().setFromObject(currentObject);
+                if (!box.isEmpty()) {
+                    const minY = box.min.y;
+                    // Shift object up so its bottom is at 0
+                    currentObject.position.y -= minY;
+                    currentObject.updateMatrix();
+                    currentObject.updateWorldMatrix(true, true);
+                }
+
                 scene.add(currentObject);
 
                 // Show/Hide Anim Controls
@@ -871,7 +898,7 @@
                 }
 
                 // UI Controls Management
-                const controls = {
+                const uiControls = {
                     vehicle: document.getElementById('vehicle-color-control'),
                     house: document.getElementById('house-color-control'),
                     bush: document.getElementById('bush-scale-control'),
@@ -881,23 +908,23 @@
                 };
 
                 // Hide all special controls first
-                Object.values(controls).forEach(el => {
+                Object.values(uiControls).forEach(el => {
                     if (el) el.style.display = 'none';
                 });
 
                 // Show appropriate controls
                 if (objDef.id === 'car' || objDef.id === 'truck') {
-                    if (controls.vehicle) controls.vehicle.style.display = 'block';
-                } else if (objDef.id === 'house') {
-                    if (controls.house) controls.house.style.display = 'block';
-                } else if (objDef.id === 'bush') {
-                    if (controls.bush) controls.bush.style.display = 'block';
+                    if (uiControls.vehicle) uiControls.vehicle.style.display = 'block';
+                } else if (objDef.module.includes('houseElement') || objDef.module.includes('smallBuildingElement') || objDef.module.includes('plateauElement')) {
+                    if (uiControls.house) uiControls.house.style.display = 'block';
+                } else if (objDef.module.includes('bushElement')) {
+                    if (uiControls.bush) uiControls.bush.style.display = 'block';
                 } else if (objDef.id === 'bus') {
-                    if (controls.bus) controls.bus.style.display = 'block';
+                    if (uiControls.bus) uiControls.bus.style.display = 'block';
                 } else if (objDef.id === 'player') {
-                    if (controls.player) controls.player.style.display = 'block';
+                    if (uiControls.player) uiControls.player.style.display = 'block';
                 } else if (objDef.id === 'femalePlayer') {
-                    if (controls.femalePlayer) controls.femalePlayer.style.display = 'block';
+                    if (uiControls.femalePlayer) uiControls.femalePlayer.style.display = 'block';
                 }
 
                 // Store current object definition for color changes
@@ -931,6 +958,9 @@
                         valueSpan.textContent = distance.toFixed(1);
                     }
                 }
+
+                // Re-apply bounding box if enabled
+                if (typeof toggleBoundingBox === 'function') toggleBoundingBox();
 
             } catch (err) {
                 console.error('Error loading object:', err);
@@ -998,6 +1028,117 @@
                 ambientLight.intensity = 0.6;
                 dirLight.intensity = 1.0;
             }
+        };
+
+        // --- Bounding Box Toggle ---
+        let boundingBoxHelper = null;
+
+        window.toggleBoundingBox = () => {
+            const checkbox = document.getElementById('show-bounding-box');
+
+            // Remove existing box if present
+            if (boundingBoxHelper) {
+                scene.remove(boundingBoxHelper);
+                boundingBoxHelper = null;
+            }
+
+            // Create new box if checkbox is checked
+            if (checkbox.checked) {
+                const box = new THREE.Box3();
+                let hasObject = false;
+
+                // Helper to expand box for an object
+                const expandBox = (obj) => {
+                    if (!obj) return;
+                    obj.traverse(child => {
+                        if (child.isMesh && child.geometry) {
+                            if (!child.geometry.boundingBox) {
+                                child.geometry.computeBoundingBox();
+                            }
+                            if (child.geometry.boundingBox) {
+                                const childBox = child.geometry.boundingBox.clone();
+                                child.updateWorldMatrix(true, false);
+                                childBox.applyMatrix4(child.matrixWorld);
+                                box.union(childBox);
+                                hasObject = true;
+                            }
+                        }
+                    });
+                };
+
+                if (Array.isArray(currentWrapper)) {
+                    // Handle multiple enemies
+                    currentWrapper.forEach(wrapper => {
+                        if (wrapper.mesh) expandBox(wrapper.mesh);
+                    });
+                } else if (currentObject) {
+                    // Handle single object
+                    expandBox(currentObject);
+                }
+
+                // Create Box3Helper with yellow color
+                if (hasObject && !box.isEmpty()) {
+                    boundingBoxHelper = new THREE.Box3Helper(box, 0xffff00); // Yellow
+                    scene.add(boundingBoxHelper);
+                }
+            }
+        };
+
+        // --- Export GLTF ---
+        window.exportGLTF = () => {
+            const exporter = new GLTFExporter();
+            let objectToExport = currentObject;
+
+            // Handle multiple enemies (View All)
+            if (Array.isArray(currentWrapper)) {
+                objectToExport = new THREE.Group();
+                currentWrapper.forEach(wrapper => {
+                    if (wrapper.mesh) objectToExport.add(wrapper.mesh.clone());
+                });
+            } else if (!objectToExport) {
+                alert('No object to export!');
+                return;
+            } else {
+                // Clone single object to avoid modifying the scene
+                objectToExport = objectToExport.clone();
+            }
+
+            // Fix colors for export (remove metalness/roughness dependence on environment map)
+            objectToExport.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    // Clone material to avoid affecting the original object if it shares materials
+                    // although we cloned the object, materials might still be shared references
+                    const oldMat = child.material;
+                    const newMat = oldMat.clone();
+
+                    // Force non-metallic, fully rough for maximum visibility in unlit editors
+                    if (newMat.metalness !== undefined) newMat.metalness = 0.0;
+                    if (newMat.roughness !== undefined) newMat.roughness = 1.0;
+
+                    child.material = newMat;
+                }
+            });
+
+            exporter.parse(
+                objectToExport,
+                (gltf) => {
+                    const blob = new Blob([gltf], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.style.display = 'none';
+                    link.href = url;
+                    link.download = (currentObjDef ? currentObjDef.id : 'scene') + '.glb';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                },
+                (error) => {
+                    console.error('An error happened during GLTF export:', error);
+                    alert('Export failed: ' + error.message);
+                },
+                { binary: true } // Export as binary .glb
+            );
         };
 
         // --- Color Control Functions ---
@@ -1221,7 +1362,17 @@
                     currentObject = result.mesh;
                 } else {
                     console.error('Unknown object format:', result);
-                    return;
+                }
+
+                // Auto-align to ground
+                // We want the bottom of the object to be at y=0
+                const box = new THREE.Box3().setFromObject(currentObject);
+                if (!box.isEmpty()) {
+                    const minY = box.min.y;
+                    // Shift object up so its bottom is at 0
+                    currentObject.position.y -= minY;
+                    currentObject.updateMatrix();
+                    currentObject.updateWorldMatrix(true, true);
                 }
 
                 scene.add(currentObject);
@@ -1271,6 +1422,16 @@
 
                 zombieConfigs.forEach(({ type, x, name, createFn }) => {
                     const zombieData = createFn(scene, x, 0, 0);
+
+                    // Auto-align to ground
+                    const box = new THREE.Box3().setFromObject(zombieData.mesh);
+                    if (!box.isEmpty()) {
+                        const minY = box.min.y;
+                        zombieData.mesh.position.y -= minY;
+                        zombieData.mesh.updateMatrix();
+                        zombieData.mesh.updateWorldMatrix(true, true);
+                    }
+
                     const wrapper = new AnimationWrapper(zombieData, type);
                     wrapper.enemyType = type; // Store type for label positioning
                     wrapper.enemyName = name; // Store name for label text
@@ -1411,6 +1572,15 @@
                     if (playerObj) {
                         console.log('Loading default object:', playerObj);
                         await loadObject(playerObj);
+
+                        // Highlight sidebar item
+                        const playerItem = document.querySelector(`.object-item[data-id="player"]`);
+                        if (playerItem) {
+                            document.querySelectorAll('.object-item').forEach(i => i.classList.remove('active'));
+                            playerItem.classList.add('active');
+                            // Ensure Characters category is open (it's the first one, usually open by default logic or we can force it)
+                            // The current logic defaults 'enemies' to open, let's fix that if needed, but for now just highlighting the item is key.
+                        }
                     }
                 }
             } catch (err) {

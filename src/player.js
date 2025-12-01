@@ -1921,9 +1921,13 @@ export class Player {
     setStudioSelection(obj) {
         this.studioSelected = obj;
         if (this.selectionInfo) {
-            const data = obj.userData || {};
-            this.selectionInfo.innerText = `${data.gameName || 'Object'} (${data.gameId || '---'})`;
-            this.selectionInfo.classList.remove('hidden');
+            if (obj && obj.userData) {
+                const data = obj.userData;
+                this.selectionInfo.innerText = `${data.gameName || 'Object'} (${data.gameId || '---'})`;
+                this.selectionInfo.classList.remove('hidden');
+            } else {
+                this.selectionInfo.classList.add('hidden');
+            }
         }
         this.refreshStudioSelectionHelper();
     }
@@ -1936,24 +1940,39 @@ export class Player {
         if (!this.studioSelected) return;
         try {
             const box = this.buildStudioSelectionBox(this.studioSelected);
+            console.log('[DEBUG BOX] Creating Box3Helper with box:', box);
             this.studioSelectionHelper = new THREE.Box3Helper(box, 0xffd700);
             this.studioSelectionHelper.material.depthTest = false;
             this.studioSelectionHelper.material.transparent = true;
             this.studioSelectionHelper.material.opacity = 0.9;
             this.scene.add(this.studioSelectionHelper);
+            console.log('[DEBUG BOX] Box3Helper added to scene successfully');
         } catch (e) {
+            console.error('[DEBUG BOX] ERROR creating Box3Helper:', e);
             this.studioSelectionHelper = null;
         }
     }
 
     buildStudioSelectionBox(obj) {
+        console.log('[DEBUG BOX] Building box for:', obj.userData?.gameName, 'isNPC:', obj.userData?.isNPC);
         const box = new THREE.Box3();
+        let meshCount = 0;
+        let skippedCount = 0;
+        
         obj.traverse(child => {
             if (!child.isMesh || !child.geometry) return;
+            meshCount++;
+            
             const ud = child.userData || {};
             const mat = child.material;
             const isTransparent = mat && mat.transparent;
-            if (isTransparent || ud.isShadow || ud.shadow) return;
+            
+            if (isTransparent || ud.isShadow || ud.shadow) {
+                console.log('[DEBUG BOX] Skipping mesh (transparent or shadow):', child.name || 'unnamed');
+                skippedCount++;
+                return;
+            }
+            
             if (!child.geometry.boundingBox) {
                 try { child.geometry.computeBoundingBox(); } catch (e) {}
             }
@@ -1962,9 +1981,14 @@ export class Player {
                 child.updateWorldMatrix(true, false);
                 childBox.applyMatrix4(child.matrixWorld);
                 box.union(childBox);
+                console.log('[DEBUG BOX] Added mesh to box');
             }
         });
+        
+        console.log('[DEBUG BOX] Processed:', meshCount, 'meshes, skipped:', skippedCount, 'isEmpty:', box.isEmpty());
+        
         if (box.isEmpty()) {
+            console.log('[DEBUG BOX] Box is empty! Using fallback 1x1x1 box');
             box.setFromCenterAndSize(obj.position, new THREE.Vector3(1, 1, 1));
         }
         return box;
