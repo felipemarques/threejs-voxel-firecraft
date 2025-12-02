@@ -1044,14 +1044,14 @@ export class Player {
             }
         }
 
-        // Check remote multiplayer players if present (client prediction for visuals only)
+        // Multiplayer: Send shoot input to authoritative server
+        if (this.multiplayerClient && typeof this.multiplayerClient.sendShoot === 'function') {
+            const direction = raycaster.ray.direction.clone();
+            this.multiplayerClient.sendShoot(direction, weapon.name);
+        }
+
+        // Check remote multiplayer players for client-side visual prediction
         if (this.multiplayerClient && this.multiplayerClient.others && this.multiplayerClient.others.size > 0) {
-            // Send shoot input to authoritative server
-            if (typeof this.multiplayerClient.sendShoot === 'function') {
-                const direction = raycaster.ray.direction.clone();
-                this.multiplayerClient.sendShoot(direction, weapon.name);
-            }
-            
             // Client-side prediction for immediate visual feedback
             const remoteMeshes = Array.from(this.multiplayerClient.others.values());
             const intersects = raycaster.intersectObjects(remoteMeshes, true);
@@ -1067,6 +1067,7 @@ export class Player {
                 }
             }
         }
+
 
         
         // Create bullet tracer visualization (optional; off by default for perf)

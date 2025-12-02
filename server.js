@@ -97,6 +97,10 @@ class PositionHistory {
 // SERVER-SIDE HIT DETECTION
 // ============================================================================
 
+// Optional: Enable lag compensation (rewinds positions to account for network latency)
+// Disable for simpler debugging, enable for competitive play
+const LAG_COMPENSATION_ENABLED = false; // Set to true for production
+
 function processShoot(shooterId, roomCode, data) {
   const room = rooms.get(roomCode);
   if (!room || !room.matchActive) return;
@@ -113,14 +117,23 @@ function processShoot(shooterId, roomCode, data) {
     return;
   }
   
-  // Lag compensation: rewind to shooter's timestamp
+  // Determine target positions (with or without lag compensation)
   const targetStates = new Map();
-  const shootTimestamp = data.timestamp || Date.now();
   
-  for (const [id, history] of room.positionHistory) {
-    if (id === shooterId) continue; // don't shoot yourself
-    const state = history.getStateAt(shootTimestamp);
-    if (state) targetStates.set(id, state);
+  if (LAG_COMPENSATION_ENABLED) {
+    // Lag compensation: rewind to shooter's timestamp
+    const shootTimestamp = data.timestamp || Date.now();
+    for (const [id, history] of room.positionHistory) {
+      if (id === shooterId) continue;
+      const state = history.getStateAt(shootTimestamp);
+      if (state) targetStates.set(id, state);
+    }
+  } else {
+    // Simple: use current positions
+    for (const [id, pState] of room.playerStates) {
+      if (id === shooterId) continue;
+      targetStates.set(id, { position: pState.position, rotation: pState.rotation });
+    }
   }
   
   // Perform raycast
