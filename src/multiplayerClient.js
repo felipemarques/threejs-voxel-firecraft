@@ -149,8 +149,27 @@ export class MultiplayerClient {
                     mesh.userData.custom = data.custom ? { ...data.custom } : null;
                 }
             } else if (data.type === 'hit') {
+                // DEPRECATED: Old direct hit messages
+                console.warn('[DEPRECATED] Received old hit message, use hit-confirm');
                 if (this.onHit) {
                     this.onHit(data);
+                }
+            } else if (data.type === 'hit-confirm') {
+                // Server confirmed a hit
+                if (this.onHitConfirm) {
+                    this.onHitConfirm(data);
+                }
+                
+                // If we are the target, take damage
+                if (data.targetId === this.id && this.player) {
+                    if (typeof this.player.takeDamage === 'function') {
+                        this.player.takeDamage(data.damage);
+                    }
+                }
+                
+                // Visual feedback for all clients
+                if (data.position && this.scene) {
+                    this.createHitMarker(data.position);
                 }
             } else if (data.type === 'host-changed') {
                 this.isHost = data.hostId === this.id;
@@ -425,9 +444,24 @@ export class MultiplayerClient {
     }
 
     sendHit(targetId, amount) {
+        // DEPRECATED: Old client-side hit detection
+        // Kept for backward compatibility but server ignores this
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
         if (!targetId || typeof amount !== 'number') return;
         const payload = { type: 'hit', targetId, amount };
+        const msg = JSON.stringify(payload);
+        try { this.socket.send(msg); } catch (e) {}
+        this.trackTx(msg.length);
+    }
+
+    sendShoot(direction, weaponName) {
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+        const payload = {
+            type: 'shoot',
+            direction: { x: direction.x, y: direction.y, z: direction.z },
+            weapon: weaponName,
+            timestamp: this._now()
+        };
         const msg = JSON.stringify(payload);
         try { this.socket.send(msg); } catch (e) {}
         this.trackTx(msg.length);
@@ -779,5 +813,26 @@ export class MultiplayerClient {
         while (diff > Math.PI) { a -= Math.PI * 2; diff = a - prev; }
         while (diff < -Math.PI) { a += Math.PI * 2; diff = a - prev; }
         return a;
+    }
+    createHitMarker(position) {
+        try {
+            const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000, 
+                transparent: true,
+                opacity: 0.8 
+            });
+            const marker = new THREE.Mesh(geometry, material);
+            marker.position.set(position.x, position.y, position.z);
+            this.scene.add(marker);
+            
+            setTimeout(() => {
+                this.scene.remove(marker);
+                geometry.dispose();
+                material.dispose();
+            }, 200);
+        } catch (e) {
+            // Non-fatal visual feedback error
+        }
     }
 }

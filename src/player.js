@@ -1044,8 +1044,15 @@ export class Player {
             }
         }
 
-        // Check remote multiplayer players if present
+        // Check remote multiplayer players if present (client prediction for visuals only)
         if (this.multiplayerClient && this.multiplayerClient.others && this.multiplayerClient.others.size > 0) {
+            // Send shoot input to authoritative server
+            if (typeof this.multiplayerClient.sendShoot === 'function') {
+                const direction = raycaster.ray.direction.clone();
+                this.multiplayerClient.sendShoot(direction, weapon.name);
+            }
+            
+            // Client-side prediction for immediate visual feedback
             const remoteMeshes = Array.from(this.multiplayerClient.others.values());
             const intersects = raycaster.intersectObjects(remoteMeshes, true);
             if (intersects.length > 0) {
@@ -1055,18 +1062,12 @@ export class Player {
                 if (distanceToPlayer < distanceToWorld) {
                     bulletEnd = hitPoint.clone();
                     hitSomething = true;
-                    // Resolve target root mesh with gameId
-                    let obj = intersects[0].object;
-                    while (obj && !obj.userData?.gameId && obj.parent) {
-                        obj = obj.parent;
-                    }
-                    const targetId = obj && obj.userData ? obj.userData.gameId : null;
-                    if (targetId && this.multiplayerClient && typeof this.multiplayerClient.sendHit === 'function') {
-                        this.multiplayerClient.sendHit(targetId, weapon.damage);
-                    }
+                    // Note: Damage is applied by server via hit-confirm message
+                    // This is just visual prediction
                 }
             }
         }
+
         
         // Create bullet tracer visualization (optional; off by default for perf)
         if (this.showTracers) {

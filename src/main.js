@@ -1035,14 +1035,19 @@ class Game {
             if (typeof this.enemyManager.setTargetCount === 'function') {
                 this.enemyManager.setTargetCount(this.multiplayerEnemyBaseCount);
             }
-            // Hook remote hit handler to apply damage
+            // Hook server hit confirmation handler
             if (this.multiplayer) {
+                // REMOVED: Old direct hit handler (now deprecated)
+                // Damage is now applied via hit-confirm in multiplayerClient.js
                 this.multiplayer.onHit = (payload) => {
-                    if (!payload || payload.targetId !== this.multiplayer.id) return;
-                    const amt = typeof payload.amount === 'number' ? payload.amount : 0;
-                    if (amt > 0 && this.player && typeof this.player.takeDamage === 'function') {
-                        this.player.takeDamage(amt);
-                    }
+                    console.warn('[DEPRECATED] Direct hit message received, ignoring');
+                };
+
+                // NEW: Handle authoritative server hit confirmations
+                this.multiplayer.onHitConfirm = (data) => {
+                    console.log(`[HIT CONFIRMED] ${data.shooterId} -> ${data.targetId} [${data.damage} dmg, ${data.weapon}]${data.isDead ? ' [KILL]' : ''}`);
+                    // Damage already applied in multiplayerClient.js handler
+                    // Could add kill feed UI here
                 };
             }
         }
