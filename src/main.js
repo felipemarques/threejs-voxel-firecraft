@@ -727,6 +727,34 @@ class Game {
             });
         }
         
+        // Multiplayer server selector
+        if (mpServerSelect && mpServerInput) {
+            mpServerSelect.addEventListener('change', () => {
+                if (mpServerSelect.value === 'custom') {
+                    mpServerInput.style.display = 'block';
+                    mpServerInput.focus();
+                } else {
+                    mpServerInput.style.display = 'none';
+                    mpServerInput.value = mpServerSelect.value;
+                }
+            });
+            
+            // Initialize: if saved value is not in select, show custom field
+            const savedServer = getSetting('mpServer');
+            if (savedServer) {
+                const optionExists = Array.from(mpServerSelect.options).some(opt => opt.value === savedServer);
+                if (optionExists && savedServer !== 'custom') {
+                    mpServerSelect.value = savedServer;
+                    mpServerInput.value = savedServer;
+                    mpServerInput.style.display = 'none';
+                } else {
+                    mpServerSelect.value = 'custom';
+                    mpServerInput.value = savedServer;
+                    mpServerInput.style.display = 'block';
+                }
+            }
+        }
+        
         // Make dashboards draggable
         this.makeDashboardDraggable('dashboard');
         this.makeDashboardDraggable('perf-dashboard');
@@ -1120,34 +1148,6 @@ class Game {
         if (effectiveSettings.gameMode === 'matrix' && this.itemManager && typeof this.itemManager.spawnMatrixLoadout === 'function') {
             this.itemManager.spawnMatrixLoadout(this.player.position.x, this.player.position.z);
         }
-        // Multiplayer server selector
-        if (mpServerSelect && mpServerInput) {
-            mpServerSelect.addEventListener('change', () => {
-                if (mpServerSelect.value === 'custom') {
-                    mpServerInput.style.display = 'block';
-                    mpServerInput.focus();
-                } else {
-                    mpServerInput.style.display = 'none';
-                    mpServerInput.value = mpServerSelect.value;
-                }
-            });
-            
-            // Initialize: if saved value is not in select, show custom field
-            const savedServer = getSetting('mpServer');
-            if (savedServer) {
-                const optionExists = Array.from(mpServerSelect.options).some(opt => opt.value === savedServer);
-                if (optionExists && savedServer !== 'custom') {
-                    mpServerSelect.value = savedServer;
-                    mpServerInput.value = savedServer;
-                    mpServerInput.style.display = 'none';
-                } else {
-                    mpServerSelect.value = 'custom';
-                    mpServerInput.value = savedServer;
-                    mpServerInput.style.display = 'block';
-                }
-            }
-        }
-        
         // Multiplayer: randomize spawn away from others
         if (effectiveSettings.gameMode === 'multiplayer') {
             // If custom spawn is provided and DEBUG_STATIC_TEST is active, spawn there directly
