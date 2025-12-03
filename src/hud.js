@@ -222,6 +222,9 @@ export class HUD {
     update(deltaTime) {
         if (!this.player) return;
 
+        // Get current time once for all timing checks (performance optimization)
+        const currentTime = performance.now();
+
         // --- CORE UI UPDATES (Always run) ---
 
         // Health & Shield
@@ -379,7 +382,6 @@ export class HUD {
         this.hoveredPlayer = null;
         
         // Throttle raycasts for performance - only run every 150ms
-        const currentTime = performance.now();
         const shouldRunRaycast = currentTime - this.lastRaycastTime >= this.raycastInterval;
         
         if (shouldRunRaycast && !this.hoveredEnemy && this.player && this.player.enemyManager && this.player.enemyManager.enemies.length > 0) {
