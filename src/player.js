@@ -864,10 +864,10 @@ export class Player {
                     current = current.parent;
                 }
                 
-                // Update dashboard Target field
+                // Update dashboard Object Target Inspect field
                 const targetInspect = document.getElementById('target-inspect');
                 if (targetInspect) {
-                    targetInspect.innerHTML = `Target: <strong>${objectName}</strong> | Type: ${objectType} | Category: ${objectCategory}`;
+                    targetInspect.innerHTML = `Object Target Inspect: <strong>${objectName}</strong> | Type: ${objectType} | Category: ${objectCategory}`;
                 }
                 
                 console.log('[DEBUG INSPECTOR]', {
@@ -882,7 +882,7 @@ export class Player {
                 // No object hit
                 const targetInspect = document.getElementById('target-inspect');
                 if (targetInspect) {
-                    targetInspect.innerHTML = 'Target: ---';
+                    targetInspect.innerHTML = 'Object Target Inspect: ---';
                 }
             }
         });
