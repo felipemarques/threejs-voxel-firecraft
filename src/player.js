@@ -759,8 +759,133 @@ export class Player {
         document.addEventListener('keyup', onKeyUp);
         document.addEventListener('mousedown', onMouseDown);
         document.addEventListener('mouseup', onMouseUp);
-        // Prevent context menu
-        document.addEventListener('contextmenu', event => event.preventDefault());
+        
+        // Right-click object inspector (debug mode)
+        document.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            
+            // Only inspect objects when debug mode is active
+            if (!this.hud || !this.hud.debugEnabled) return;
+            
+            // Raycast from camera center to inspect object
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+            
+            // Collect all possible objects to inspect
+            const inspectableObjects = [];
+            
+            // Add world objects (trees, rocks, houses, etc)
+            if (this.worldObjects && this.worldObjects.length > 0) {
+                this.worldObjects.forEach(obj => {
+                    if (obj && obj.traverse) {
+                        obj.traverse(child => {
+                            if (child.isMesh) inspectableObjects.push(child);
+                        });
+                    } else if (obj && obj.isMesh) {
+                        inspectableObjects.push(obj);
+                    }
+                });
+            }
+            
+            // Add enemies
+            if (this.enemyManager && this.enemyManager.enemies) {
+                this.enemyManager.enemies.forEach(enemy => {
+                    if (enemy.mesh) {
+                        enemy.mesh.traverse(child => {
+                            if (child.isMesh) inspectableObjects.push(child);
+                        });
+                    }
+                });
+            }
+            
+            // Add items/loot
+            if (this.itemManager && this.itemManager.items) {
+                this.itemManager.items.forEach(item => {
+                    if (item.mesh) {
+                        if (item.mesh.traverse) {
+                            item.mesh.traverse(child => {
+                                if (child.isMesh) inspectableObjects.push(child);
+                            });
+                        } else if (item.mesh.isMesh) {
+                            inspectableObjects.push(item.mesh);
+                        }
+                    }
+                });
+            }
+            
+            // Add vehicles
+            if (this.vehicleManager && this.vehicleManager.vehicles) {
+                this.vehicleManager.vehicles.forEach(vehicle => {
+                    if (vehicle.mesh) {
+                        vehicle.mesh.traverse(child => {
+                            if (child.isMesh) inspectableObjects.push(child);
+                        });
+                    }
+                });
+            }
+            
+            // Add multiplayer players
+            if (this.multiplayerClient && this.multiplayerClient.others) {
+                this.multiplayerClient.others.forEach(playerMesh => {
+                    if (playerMesh && playerMesh.traverse) {
+                        playerMesh.traverse(child => {
+                            if (child.isMesh) inspectableObjects.push(child);
+                        });
+                    }
+                });
+            }
+            
+            // Perform raycast
+            const intersects = raycaster.intersectObjects(inspectableObjects, false);
+            
+            if (intersects.length > 0) {
+                const hitObject = intersects[0].object;
+                
+                // Extract object information
+                let objectName = hitObject.name || 'Unnamed';
+                let objectType = hitObject.type || 'Mesh';
+                let objectCategory = 'Unknown';
+                
+                // Try to determine category from parent or userData
+                let current = hitObject;
+                while (current) {
+                    if (current.userData) {
+                        if (current.userData.type) objectCategory = current.userData.type;
+                        if (current.userData.category) objectCategory = current.userData.category;
+                        if (current.userData.itemType) objectCategory = `Item: ${current.userData.itemType}`;
+                        if (current.userData.enemyType) objectCategory = `Enemy: ${current.userData.enemyType}`;
+                        if (current.userData.vehicleType) objectCategory = `Vehicle: ${current.userData.vehicleType}`;
+                        if (current.userData.gameId) objectName = current.userData.gameId;
+                        if (current.userData.nick) {
+                            objectName = current.userData.nick;
+                            objectCategory = 'Player';
+                        }
+                    }
+                    current = current.parent;
+                }
+                
+                // Update dashboard Target field
+                const targetInspect = document.getElementById('target-inspect');
+                if (targetInspect) {
+                    targetInspect.innerHTML = `Target: <strong>${objectName}</strong> | Type: ${objectType} | Category: ${objectCategory}`;
+                }
+                
+                console.log('[DEBUG INSPECTOR]', {
+                    name: objectName,
+                    type: objectType,
+                    category: objectCategory,
+                    position: intersects[0].point,
+                    distance: intersects[0].distance.toFixed(2) + 'm',
+                    object: hitObject
+                });
+            } else {
+                // No object hit
+                const targetInspect = document.getElementById('target-inspect');
+                if (targetInspect) {
+                    targetInspect.innerHTML = 'Target: ---';
+                }
+            }
+        });
 
         // Click head to cycle mouth when pointer is free (avoids interfering with shooting)
         this._mouthRaycaster = new THREE.Raycaster();
