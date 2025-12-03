@@ -78,6 +78,29 @@
         <!-- Minimap -->
         <div id="minimap" aria-label="Minimap">
             <canvas id="minimap-canvas" width="180" height="180"></canvas>
+
+            <!-- In-Game Top Bar -->
+            <div id="game-topbar" style="display: none;">
+                <!-- Menu Button (top-left) -->
+                <button id="topbar-menu-btn" class="topbar-menu-button">
+                    ☰ Menu
+                </button>
+
+                <!-- Dropdown Menu -->
+                <div id="topbar-dropdown" class="topbar-dropdown hidden">
+                    <div class="topbar-dropdown-item" id="topbar-quit">
+                        🚪 Quit Game
+                    </div>
+                    <div class="topbar-dropdown-item" id="topbar-info">
+                        ℹ️ Game Info
+                    </div>
+                </div>
+
+                <!-- Game Mode Display (center) -->
+                <div id="topbar-gamemode" class="topbar-gamemode">
+                    MODE: ARCADE
+                </div>
+            </div>
             <div id="minimap-label">MAP</div>
         </div>
 

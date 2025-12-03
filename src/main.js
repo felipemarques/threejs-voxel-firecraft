@@ -1168,6 +1168,10 @@ class Game {
             }
             // In DEBUG_STATIC_TEST without custom spawn, leave at (0,0,0) - server will handle
         }
+
+        // === Initialize Top Bar ===
+        this.setupTopBar(effectiveSettings);
+        
         // Multiplayer client setup
         if (effectiveSettings.gameMode === 'multiplayer') {
             this.multiplayer = new MultiplayerClient({
