@@ -951,6 +951,21 @@ export class Player {
             return;
         }
 
+        // Rotate player to face shooting direction (Free Fire style)
+        // Get camera forward direction (where we're aiming)
+        const cameraDirection = new THREE.Vector3();
+        this.camera.getWorldDirection(cameraDirection);
+        
+        // Project to horizontal plane (ignore Y axis for character rotation)
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
+        
+        // Calculate angle from camera direction
+        const targetAngle = Math.atan2(cameraDirection.x, cameraDirection.z);
+        
+        // Instantly rotate player mesh to face aim direction
+        this.mesh.rotation.y = targetAngle;
+
 
         this.createMuzzleFlash();
         // Play gunshot SFX (use pooled audio elements to allow overlapping)
