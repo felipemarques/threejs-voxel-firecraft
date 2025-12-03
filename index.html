@@ -464,8 +464,15 @@
 
             <div id="tab-mp" class="tab-panel hidden">
                 <div class="menu-group">
-                    <label>Multiplayer Server URL</label>
-                    <input type="text" id="setting-mp-server" placeholder="wss://example.com/socket" />
+                    <label>Multiplayer Server</label>
+                    <select id="setting-mp-server-select"
+                        style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 8px;">
+                        <option value="wss://game-server01.voxelfirecraft.com/socket">game-server01.voxelfirecraft.com
+                            (Official)</option>
+                        <option value="custom">Custom Server...</option>
+                    </select>
+                    <input type="text" id="setting-mp-server" placeholder="wss://your-server.com/socket"
+                        style="display: none;" />
                 </div>
                 <div class="menu-group">
                     <label>Seed (opcional)</label>

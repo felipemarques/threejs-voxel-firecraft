@@ -464,6 +464,7 @@ class Game {
         const groqKeyInput = document.getElementById('setting-groq-key');
         const nvidiaKeyInput = document.getElementById('setting-nvidia-key');
         const mpServerInput = document.getElementById('setting-mp-server');
+        const mpServerSelect = document.getElementById('setting-mp-server-select');
         const mpSeedInput = document.getElementById('setting-mp-seed');
         const mpRoomInput = document.getElementById('setting-mp-room');
         const mpRoomGenerate = document.getElementById('mp-room-generate');
@@ -763,7 +764,7 @@ class Game {
                 openaiKey: openaiKeyInput ? openaiKeyInput.value : '',
                 groqKey: groqKeyInput ? groqKeyInput.value : '',
                 nvidiaKey: nvidiaKeyInput ? nvidiaKeyInput.value : '',
-                mpServer: mpServerInput ? mpServerInput.value : '',
+                mpServer: mpServerInput ? (mpServerSelect && mpServerSelect.value !== 'custom' ? mpServerSelect.value : mpServerInput.value) : '',
                 mpSeed: mpSeedInput ? mpSeedInput.value.trim() : '',
                 mpRoom: mpRoomInput ? mpRoomInput.value : '',
                 mpSpawn: mpSpawnInput ? mpSpawnInput.value : '',
@@ -1119,6 +1120,34 @@ class Game {
         if (effectiveSettings.gameMode === 'matrix' && this.itemManager && typeof this.itemManager.spawnMatrixLoadout === 'function') {
             this.itemManager.spawnMatrixLoadout(this.player.position.x, this.player.position.z);
         }
+        // Multiplayer server selector
+        if (mpServerSelect && mpServerInput) {
+            mpServerSelect.addEventListener('change', () => {
+                if (mpServerSelect.value === 'custom') {
+                    mpServerInput.style.display = 'block';
+                    mpServerInput.focus();
+                } else {
+                    mpServerInput.style.display = 'none';
+                    mpServerInput.value = mpServerSelect.value;
+                }
+            });
+            
+            // Initialize: if saved value is not in select, show custom field
+            const savedServer = getSetting('mpServer');
+            if (savedServer) {
+                const optionExists = Array.from(mpServerSelect.options).some(opt => opt.value === savedServer);
+                if (optionExists && savedServer !== 'custom') {
+                    mpServerSelect.value = savedServer;
+                    mpServerInput.value = savedServer;
+                    mpServerInput.style.display = 'none';
+                } else {
+                    mpServerSelect.value = 'custom';
+                    mpServerInput.value = savedServer;
+                    mpServerInput.style.display = 'block';
+                }
+            }
+        }
+        
         // Multiplayer: randomize spawn away from others
         if (effectiveSettings.gameMode === 'multiplayer') {
             // If custom spawn is provided and DEBUG_STATIC_TEST is active, spawn there directly
