@@ -864,20 +864,61 @@ export class Player {
                     current = current.parent;
                 }
                 
-                // Update dashboard Object Target Inspect field
+                // Update dashboard Object Target Inspect field (only UI update)
                 const targetInspect = document.getElementById('target-inspect');
                 if (targetInspect) {
                     targetInspect.innerHTML = `Object Target Inspect: <strong>${objectName}</strong> | Type: ${objectType} | Category: ${objectCategory}`;
                 }
                 
-                console.log('[DEBUG INSPECTOR]', {
-                    name: objectName,
-                    type: objectType,
-                    category: objectCategory,
-                    position: intersects[0].point,
-                    distance: intersects[0].distance.toFixed(2) + 'm',
-                    object: hitObject
+                // Comprehensive console logging for debugging (especially vegetation)
+                console.group('[🔍 DEBUG INSPECTOR]');
+                console.log('📋 Object Name:', objectName);
+                console.log('🏷️  Object Type:', objectType);
+                console.log('📦 Category:', objectCategory);
+                console.log('📍 Position:', {
+                    x: intersects[0].point.x.toFixed(2),
+                    y: intersects[0].point.y.toFixed(2),
+                    z: intersects[0].point.z.toFixed(2)
                 });
+                console.log('📏 Distance:', intersects[0].distance.toFixed(2) + 'm');
+                
+                // Log all userData for complete analysis
+                if (hitObject.userData && Object.keys(hitObject.userData).length > 0) {
+                    console.log('💾 UserData:');
+                    console.table(hitObject.userData);
+                } else {
+                    console.log('💾 UserData:', '(empty)');
+                }
+                
+                // Log parent hierarchy for debugging
+                const hierarchy = [];
+                let current = hitObject;
+                while (current && hierarchy.length < 5) {
+                    hierarchy.push({
+                        name: current.name || 'unnamed',
+                        type: current.type,
+                        userData: current.userData ? Object.keys(current.userData).join(', ') : 'none'
+                    });
+                    current = current.parent;
+                }
+                console.log('🌳 Hierarchy:');
+                console.table(hierarchy);
+                
+                // Log bounding box for collision debugging
+                if (hitObject.geometry) {
+                    hitObject.geometry.computeBoundingBox();
+                    const bbox = hitObject.geometry.boundingBox;
+                    if (bbox) {
+                        console.log('📐 Bounding Box:', {
+                            width: (bbox.max.x - bbox.min.x).toFixed(2),
+                            height: (bbox.max.y - bbox.min.y).toFixed(2),
+                            depth: (bbox.max.z - bbox.min.z).toFixed(2)
+                        });
+                    }
+                }
+                
+                console.log('🔧 Raw Object:', hitObject);
+                console.groupEnd();
             } else {
                 // No object hit
                 const targetInspect = document.getElementById('target-inspect');
