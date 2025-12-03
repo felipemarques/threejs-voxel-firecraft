@@ -22,10 +22,13 @@ export function createDebugOverlay({ maxLines = 400, autoShow = false } = {}) {
 
     const actions = document.createElement('div');
     actions.className = 'debug-overlay-actions';
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
     const clearBtn = document.createElement('button');
     clearBtn.textContent = 'Clear';
     const closeBtn = document.createElement('button');
     closeBtn.textContent = 'Close';
+    actions.appendChild(copyBtn);
     actions.appendChild(clearBtn);
     actions.appendChild(closeBtn);
     header.appendChild(actions);
@@ -128,6 +131,50 @@ export function createDebugOverlay({ maxLines = 400, autoShow = false } = {}) {
     window.addEventListener('error', onWindowError);
     window.addEventListener('unhandledrejection', onUnhandledRejection);
 
+    copyBtn.addEventListener('click', () => {
+        try {
+            // Create text from all logs
+            const text = logs.map(log => {
+                const time = new Date(log.ts).toLocaleTimeString();
+                return `[${time}] ${log.level.toUpperCase()}: ${log.msg}`;
+            }).join('\n');
+            
+            // Use textarea fallback (works in HTTP)
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy';
+                    }, 1000);
+                } else {
+                    copyBtn.textContent = 'Failed';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy';
+                    }, 1000);
+                }
+            } catch (err) {
+                console.error('execCommand failed:', err);
+                copyBtn.textContent = 'Error';
+                setTimeout(() => {
+                    copyBtn.textContent = 'Copy';
+                }, 1000);
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        } catch (e) {
+            console.error('Copy failed:', e);
+        }
+    });
     clearBtn.addEventListener('click', () => { logs.length = 0; render(); });
     closeBtn.addEventListener('click', () => hide());
 

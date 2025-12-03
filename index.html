@@ -105,7 +105,9 @@
                 <div>Map Size: <span id="map-size-readout">--</span> m</div>
                 <div id="target-inspect">Target: ---</div>
                 <div id="debug-info"
-                    style="display: none; color: #f1c40f; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;">
+                    style="display: none; color: #f1c40f; margin-top: 10px; border-top: 1px solid #555; padding-top: 5px; position: relative;">
+                    <button id="debug-clear-btn"
+                        style="position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 3px; font-size: 10px; padding: 2px 8px; cursor: pointer;">Clear</button>
                     <div>Target: <span id="debug-target-name">None</span></div>
                     <div>ID: <span id="debug-target-id">---</span></div>
                 </div>
@@ -258,6 +260,13 @@
                     <label style="display:flex; align-items:center; gap:8px;">
                         <input type="checkbox" id="setting-show-hat" checked style="width:20px; height:20px;">
                         Show Hat
+                    </label>
+                </div>
+
+                <div class="menu-group">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="setting-show-fps" style="width:20px; height:20px;">
+                        Show FPS Monitor
                     </label>
                 </div>
 
@@ -474,6 +483,10 @@
                         <input type="text" id="setting-mp-room" placeholder="ABCDE" />
                         <button id="mp-room-generate" class="btn-ghost">Generate</button>
                     </div>
+                </div>
+                <div class="menu-group">
+                    <label>Spawn Coords (x,y,z)</label>
+                    <input type="text" id="setting-mp-spawn" placeholder="0,0,0" />
                 </div>
                 <div class="menu-group">
                     <label>Nickname</label>

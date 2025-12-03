@@ -24,6 +24,7 @@ export class EnemyManager {
         this.targetCount = count;
         this.difficulty = settings ? settings.difficulty : 'medium';
         this.gameMode = settings && settings.gameMode ? settings.gameMode : 'arcade';
+        this.sfxVolume = settings && settings.sfxVolume !== undefined ? settings.sfxVolume / 100 : 0.5;
         this.studioAiEnabled = false;
 
         // Initial spawn
@@ -254,11 +255,20 @@ export class EnemyManager {
             enemy.startDeath();
         }
     }
+
+    setSFXVolume(volume) {
+        this.sfxVolume = Math.max(0, Math.min(1, volume));
+        this.enemies.forEach(e => {
+            if (e && typeof e.setSFXVolume === 'function') {
+                e.setSFXVolume(this.sfxVolume);
+            }
+        });
+    }
 }
 
 
 class Bot {
-    constructor(scene, x, y, z, difficulty, mapHalfSize = 100, player = null, isBig = false, zombieType = 'normal') {
+    constructor(scene, x, y, z, difficulty, mapHalfSize = 100, player = null, isBig = false, zombieType = 'normal', sfxVolume = 0.5) {
         this.scene = scene;
         this.position = new THREE.Vector3(x, y, z);
         this.mapHalfSize = mapHalfSize;
@@ -275,6 +285,7 @@ class Bot {
         this.groanRange = 15;
         this._groanSource = null;
         this._groanGain = null;
+        this.sfxVolume = sfxVolume;
         
         // Stats based on difficulty
         if (difficulty === 'easy') {
@@ -634,7 +645,7 @@ class Bot {
             const src = this.audioCtx.createBufferSource();
             src.buffer = this.deathBuffer;
             const gain = this.audioCtx.createGain();
-            gain.gain.value = 0.7; // Volume (increased from 0.5)
+            gain.gain.value = this.sfxVolume * 1.4; // Slightly louder than base volume
             src.connect(gain);
             gain.connect(this.audioCtx.destination);
             src.start(0);
@@ -771,7 +782,7 @@ class Bot {
             const src = this.audioCtx.createBufferSource();
             src.buffer = this.groanBuffer;
             const gain = this.audioCtx.createGain();
-            gain.gain.value = 0.45;
+            gain.gain.value = this.sfxVolume * 0.9;
             src.connect(gain);
             gain.connect(this.audioCtx.destination);
             src.onended = () => {
@@ -796,5 +807,9 @@ class Bot {
             try { this._groanGain.disconnect(); } catch (e) {}
             this._groanGain = null;
         }
+    }
+
+    setSFXVolume(volume) {
+        this.sfxVolume = volume;
     }
 }

@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 
 export class MultiplayerClient {
-    constructor({ player, scene, url, nick = 'Player', color = '#29b6f6', roomCode = 'PUBLIC', settings = null }) {
+    constructor(options) {
+        const { player, scene, url, nick = 'Player', color = '#29b6f6', roomCode = 'PUBLIC', settings = null, customSpawn = null } = options;
         this.player = player;
         this.scene = scene;
         this.url = url;
         this.nick = nick;
         this.color = color;
         this.roomCode = roomCode || 'PUBLIC';
+        this.customSpawnStr = customSpawn || null; // Store as string "x,y,z"
         this.socket = null;
         this.id = null;
         this.others = new Map(); // id -> mesh
@@ -156,6 +158,25 @@ export class MultiplayerClient {
                     this.onHit(data);
                 }
             } else if (data.type === 'hit-confirm') {
+                // Show hit marker
+                if (data.position && this.scene) {
+                    this.createHitMarker(data.position);
+                }
+                
+                // Detailed Debug Log
+                if (data.hitPoint && data.region) {
+                    console.log(`%c[HIT CONFIRM] Region: ${data.region} | Damage: ${data.damage}`, 'color: #00ff00; font-weight: bold; font-size: 14px;');
+                    console.log(`Exact Hit: (${data.hitPoint.x.toFixed(2)}, ${data.hitPoint.y.toFixed(2)}, ${data.hitPoint.z.toFixed(2)})`);
+                    
+                    // Visual feedback on screen (optional, but requested)
+                    const debugInfo = document.getElementById('debug-info');
+                    if (debugInfo) {
+                        debugInfo.style.display = 'block';
+                        document.getElementById('debug-target-name').innerText = `HIT: ${data.region}`;
+                        document.getElementById('debug-target-id').innerText = `DMG: ${data.damage}`;
+                    }
+                }
+
                 // Server confirmed a hit
                 if (this.onHitConfirm) {
                     this.onHitConfirm(data);
@@ -171,6 +192,28 @@ export class MultiplayerClient {
                 // Visual feedback for all clients
                 if (data.position && this.scene) {
                     this.createHitMarker(data.position);
+                    
+                    /* DISABLED: Debug raycast line (performance issue)
+                    // DEBUG: Show raycast direction line
+                    if (data.shooterId === this.id && data.direction && this.player) {
+                        // Draw line from shooter to hit point
+                        const start = this.player.mesh.position.clone();
+                        start.y += 1.6; // Eye level
+                        const end = new THREE.Vector3(data.hitPoint.x, data.hitPoint.y, data.hitPoint.z);
+                        
+                        const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+                        const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+                        const line = new THREE.Line(geometry, material);
+                        this.scene.add(line);
+                        
+                        // Remove after 2 seconds
+                        setTimeout(() => {
+                            this.scene.remove(line);
+                            geometry.dispose();
+                            material.dispose();
+                        }, 2000);
+                    }
+                    */
                 }
             } else if (data.type === 'host-changed') {
                 this.isHost = data.hostId === this.id;
@@ -196,9 +239,18 @@ export class MultiplayerClient {
                 }
             } else if (data.type === 'player-dead') {
                 if (data.id) {
-                    this.deadPeers.add(data.id);
-                    this.killRemote(data.id);
-                    if (this.onPeerDeath) this.onPeerDeath(data.id);
+                    // Handle local player death
+                    if (data.id === this.id) {
+                        if (this.player && typeof this.player.die === 'function' && !this.player.isDead) {
+                            console.log('[MP] Received own death confirmation from server');
+                            this.player.die();
+                        }
+                    } else {
+                        // Handle remote player death
+                        this.deadPeers.add(data.id);
+                        this.killRemote(data.id);
+                        if (this.onPeerDeath) this.onPeerDeath(data.id);
+                    }
                 }
             } else if (data.type === 'pong' && typeof data.ts === 'number') {
                 const rtt = this._now() - data.ts;
@@ -366,6 +418,16 @@ export class MultiplayerClient {
         // Use camera forward vector to derive facing; send forward dir explicitly to avoid wrap issues
         let rotToSend = 0;
         let fwd = { x: 0, z: 1 };
+        
+        // USER REQUEST: Remove mouse/camera synchronization
+        // Only use mesh rotation if available, otherwise default to 0
+        if (this.player && this.player.mesh && this.player.mesh.rotation) {
+             rotToSend = this.player.mesh.rotation.y;
+             fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
+        }
+        
+        /* 
+        // DISABLED: Camera-based rotation sync
         if (this.player && this.player.camera && this.player.camera.getWorldDirection) {
             const dir = new THREE.Vector3();
             this.player.camera.getWorldDirection(dir);
@@ -383,9 +445,24 @@ export class MultiplayerClient {
             rotToSend = this._wrapAngle(viewYaw);
             fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
         }
+        */
         // NOTE: Removed Math.PI offset that was causing inverted facing
         // rotToSend = this._wrapAngle(rotToSend + Math.PI);
         // fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
+        
+        // Parse custom spawn from settings
+        let customSpawn = null;
+        if (this.customSpawnStr && typeof this.customSpawnStr === 'string') {
+            const parts = this.customSpawnStr.split(',').map(s => parseFloat(s.trim()));
+            if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+                customSpawn = {
+                    x: parts[0],
+                    y: parts[1],
+                    z: parts[2]
+                };
+            }
+        }
+
         const payload = {
             type: 'state',
             pos: { x: pos.x, y: pos.y, z: pos.z },
@@ -395,7 +472,8 @@ export class MultiplayerClient {
             color: this.color,
             anim,
             ts: this._now(),
-            custom: { ...this.getCustomization() }
+            custom: { ...this.getCustomization() },
+            customSpawn // Send requested spawn to server
         };
 
         // Only send if something meaningful changed, or as a heartbeat every few seconds
@@ -459,17 +537,22 @@ export class MultiplayerClient {
         this.trackTx(msg.length);
     }
 
-    sendShoot(direction, weaponName) {
+    sendShoot(direction, weaponName, origin = null) {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+        
         const payload = {
             type: 'shoot',
             direction: { x: direction.x, y: direction.y, z: direction.z },
-            weapon: weaponName,
-            timestamp: this._now()
+            weapon: weaponName || 'Pistol',
+            ts: this._now()
         };
-        const msg = JSON.stringify(payload);
-        try { this.socket.send(msg); } catch (e) {}
-        this.trackTx(msg.length);
+        
+        // Include origin if provided (for TPS camera)
+        if (origin) {
+            payload.origin = { x: origin.x, y: origin.y, z: origin.z };
+        }
+        
+        this.socket.send(JSON.stringify(payload));
     }
 
     getPeerCount() {
@@ -853,6 +936,7 @@ export class MultiplayerClient {
             opacity: 0.5
         });
         const hitbox = new THREE.Mesh(geometry, material);
+        hitbox.position.y = 0.9; // Match server hitbox offset
         hitbox.name = 'debugHitbox';
         hitbox.visible = false; // Hidden by default
         mesh.add(hitbox);

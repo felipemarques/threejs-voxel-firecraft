@@ -17,11 +17,12 @@ const rooms = new Map();   // roomCode -> RoomState
 class PlayerState {
   constructor(id, position = { x: 0, y: 0, z: 0 }) {
     this.id = id;
+    this.nick = 'Unknown'; // Store player nickname
     this.position = new THREE.Vector3(position.x, position.y, position.z);
     this.rotation = 0;
     this.velocity = new THREE.Vector3();
     this.health = 100;
-    this.shield = 0;
+    this.shield = 100;
     this.currentWeapon = 'Pistol';
     this.ammo = { Pistol: 100, Rifle: 100, Sniper: 20 };
     this.lastShotTime = 0;
@@ -38,10 +39,11 @@ class PlayerState {
   }
 
   consumeAmmo(weaponName) {
-    if (weaponName !== 'Fist' && this.magazineCounts[weaponName]) {
-      this.magazineCounts[weaponName]--;
-    }
-    this.lastShotTime = Date.now() / 1000;
+    return; // Infinite ammo for testing
+    // if (weaponName !== 'Fist' && this.magazineCounts[weaponName]) {
+    //   this.magazineCounts[weaponName]--;
+    // }
+    // this.lastShotTime = Date.now() / 1000;
   }
 
   takeDamage(amount) {
@@ -50,8 +52,9 @@ class PlayerState {
       this.shield -= shieldDamage;
       amount -= shieldDamage;
     }
-    this.health = Math.max(0, this.health - amount);
-    return this.health <= 0; // returns true if dead
+    this.health = Math.max(1, this.health - amount); // Min health 1 to prevent death
+    return false; // Never die for testing
+    // return this.health <= 0; // returns true if dead
   }
 }
 
@@ -100,6 +103,16 @@ class PositionHistory {
 // Optional: Enable lag compensation (rewinds positions to account for network latency)
 // Disable for simpler debugging, enable for competitive play
 const LAG_COMPENSATION_ENABLED = false; // Set to true for production
+const DEBUG_STATIC_TEST = false; // Force players to face each other, disable movement
+
+// Helper to determine body region from hit height (relative to feet)
+function getBodyRegion(hitY, playerY) {
+  const relativeY = hitY - playerY;
+  if (relativeY > 1.4) return 'HEAD';
+  if (relativeY > 1.0) return 'CHEST';
+  if (relativeY > 0.6) return 'STOMACH';
+  return 'LEGS';
+}
 
 function processShoot(shooterId, roomCode, data) {
   const room = rooms.get(roomCode);
@@ -136,10 +149,28 @@ function processShoot(shooterId, roomCode, data) {
     }
   }
   
+  // Log Room State at moment of shot
+  console.log(`\n[SHOOT EVENT] Shooter: ${shooter.nick} (${shooterId.substring(0,8)})`);
+  console.log(`[ROOM STATE] Players in room: ${room.playerStates.size}`);
+  room.playerStates.forEach((p, pid) => {
+      if (pid !== shooterId) {
+          console.log(` - Target: ${p.nick} (${pid.substring(0,8)}) at (${p.position.x.toFixed(1)}, ${p.position.y.toFixed(1)}, ${p.position.z.toFixed(1)})`);
+      }
+  });
+
   // Perform raycast
-  const shooterPos = shooter.position.clone();
-  const direction = new THREE.Vector3(data.direction.x, data.direction.y, data.direction.z);
-  const raycaster = new THREE.Raycaster(shooterPos, direction.normalize());
+  // Use client-provided origin if available (TPS camera), otherwise use player eye level
+  let shooterPos;
+  if (data.origin) {
+    shooterPos = new THREE.Vector3(data.origin.x, data.origin.y, data.origin.z);
+    console.log(`[RAYCAST] Using client origin: (${shooterPos.x.toFixed(2)}, ${shooterPos.y.toFixed(2)}, ${shooterPos.z.toFixed(2)})`);
+  } else {
+    shooterPos = new THREE.Vector3(shooter.position.x, shooter.position.y + 1.6, shooter.position.z);
+    console.log(`[RAYCAST] Using player eye level: (${shooterPos.x.toFixed(2)}, ${shooterPos.y.toFixed(2)}, ${shooterPos.z.toFixed(2)})`);
+  }
+  
+  const direction = new THREE.Vector3(data.direction.x, data.direction.y, data.direction.z).normalize();
+  const raycaster = new THREE.Raycaster(shooterPos, direction);
   
   // DEBUG LOG: Shooter info
   console.log(`[SHOOT] ${shooterId.substring(0,8)} fired ${weaponName} from (${shooterPos.x.toFixed(1)}, ${shooterPos.y.toFixed(1)}, ${shooterPos.z.toFixed(1)}) dir:(${direction.x.toFixed(2)}, ${direction.y.toFixed(2)}, ${direction.z.toFixed(2)})`);
@@ -152,24 +183,102 @@ function processShoot(shooterId, roomCode, data) {
     const target = room.playerStates.get(targetId);
     if (!target || target.health <= 0) continue;
     
-    // Simple sphere collision (player hitbox ~0.8 radius)
-    const sphere = new THREE.Sphere(targetState.position, 0.8);
-    const intersectPoint = new THREE.Vector3();
+    // Two-sphere hitbox system: HEAD (priority) and BODY
     
-    if (raycaster.ray.intersectSphere(sphere, intersectPoint)) {
-      const dist = shooterPos.distanceTo(intersectPoint);
-      if (dist < closestDist && dist < 1000) { // max range check
+    // 1. HEAD HITBOX - Smaller sphere at eye level (Y=1.6)
+    const headCenter = targetState.position.clone().add(new THREE.Vector3(0, 1.6, 0));
+    const headSphere = new THREE.Sphere(headCenter, 0.35); // Smaller radius for head
+    const headIntersect = new THREE.Vector3();
+    
+    // 2. BODY HITBOX - Larger sphere at torso (Y=0.9)  
+    const bodyCenter = targetState.position.clone().add(new THREE.Vector3(0, 0.9, 0));
+    const bodySphere = new THREE.Sphere(bodyCenter, 0.8);
+    const bodyIntersect = new THREE.Vector3();
+    
+    let hitPoint = null;
+    let isHeadshot = false;
+    
+    // Check head first (priority)
+    if (raycaster.ray.intersectSphere(headSphere, headIntersect)) {
+      hitPoint = headIntersect;
+      isHeadshot = true;
+    } 
+    // If no headshot, check body
+    else if (raycaster.ray.intersectSphere(bodySphere, bodyIntersect)) {
+      hitPoint = bodyIntersect;
+      isHeadshot = false;
+    }
+    
+    if (hitPoint) {
+      const dist = shooterPos.distanceTo(hitPoint);
+      console.log(`[RAYCAST] Target ${targetId.substring(0,8)} at (${targetState.position.x.toFixed(1)}, ${targetState.position.y.toFixed(1)}, ${targetState.position.z.toFixed(1)})`);
+      console.log(`[RAYCAST] ${isHeadshot ? 'HEAD' : 'BODY'} hit at (${hitPoint.x.toFixed(2)}, ${hitPoint.y.toFixed(2)}, ${hitPoint.z.toFixed(2)}) dist: ${dist.toFixed(2)}m`);
+      
+      if (dist < closestDist) {
         closestDist = dist;
-        closestHit = { targetId, point: intersectPoint };
+        closestHit = {
+          targetId,
+          point: hitPoint,
+          distance: dist,
+          isHeadshot: isHeadshot
+        };
       }
     }
   }
   
+  // Calculate damage with headshot multipliers
   if (closestHit) {
-    const weaponDamage = { Pistol: 25, Rifle: 20, Sniper: 90, Fist: 15 };
-    const damage = weaponDamage[weaponName] || 10;
-    
     const target = room.playerStates.get(closestHit.targetId);
+    if (!target) return;
+    
+    // Base damage by weapon
+    const weaponDamage = {
+      'Pistol': 25,
+      'Rifle': 25,
+      'Shotgun': 60,
+      'Sniper': 75
+    };
+    
+    let baseDmg = weaponDamage[weaponName] || 25;
+    let damage = baseDmg;
+    let region = 'BODY';
+    
+    // Headshot logic
+    if (closestHit.isHeadshot) {
+      region = 'HEAD';
+      
+      // Instakill weapons on headshot
+      if (weaponName === 'Sniper') {
+        damage = 999; // Instakill
+      } else if (weaponName === 'Shotgun' && closestHit.distance < 10) {
+        damage = 999; // Instakill if close range
+      } else if (weaponName === 'Rifle') {
+        damage = baseDmg * 2; // 2x multiplier = 50 dmg
+      } else if (weaponName === 'Pistol') {
+        damage = baseDmg * 2; // 2x multiplier = 50 dmg (increased from 1.6x)
+      } else {
+        // Default: 2x multiplier for other weapons
+        damage = baseDmg * 2;
+      }
+      
+      // Ensure minimum 50 damage on headshot
+      if (damage < 50 && damage !== 999) {
+        damage = 50;
+      }
+      
+      console.log(`[HEADSHOT] ${weaponName} dealt ${damage} damage (base: ${baseDmg})`);
+    } else {
+      // Body regions based on Y height
+      if (closestHit.point.y > target.position.y + 1.2) {
+        region = 'CHEST';
+      } else if (closestHit.point.y > target.position.y + 0.6) {
+        region = 'STOMACH';
+      } else {
+        region = 'LEGS';
+      }
+    }
+    
+    // Apply damage
     const prevHealth = target.health;
     const prevShield = target.shield;
     const isDead = target.takeDamage(damage);
@@ -194,10 +303,11 @@ function processShoot(shooterId, roomCode, data) {
         z: closestHit.point.z
       },
       isDead,
-      weapon: weaponName
+      weapon: weaponName,
+      hitPoint: { x: closestHit.point.x, y: closestHit.point.y, z: closestHit.point.z },
+      direction: data.direction,
+      region: region // Use the region calculated above (HEAD, CHEST, STOMACH, LEGS)
     });
-    
-    console.log(`[HIT] ${shooterId} -> ${closestHit.targetId} (${weaponName}: ${damage} dmg) ${isDead ? '[KILL]' : ''}`);
     
     if (isDead) {
       broadcastToRoom(roomCode, { type: 'player-dead', id: closestHit.targetId });
@@ -310,11 +420,41 @@ wss.on('connection', (ws) => {
       if (data.type === 'state' && data.pos) {
         let pState = room.playerStates.get(id);
         if (!pState) {
+          // DEBUG: Fixed spawn positions
+          if (DEBUG_STATIC_TEST) {
+            console.log(`[SPAWN DEBUG] Player ${id.substring(0,8)} joining. CustomSpawn:`, data.customSpawn);
+            
+            // Check for client-requested spawn
+            if (data.customSpawn) {
+                data.pos = data.customSpawn;
+                console.log(`[SPAWN DEBUG] Using custom spawn: (${data.pos.x}, ${data.pos.y}, ${data.pos.z})`);
+            } else {
+                const count = room.playerStates.size;
+                if (count === 0) {
+                    // Player 1: North side, facing South (Z+)
+                    data.pos = { x: 0, y: 0, z: -5 };
+                    data.rot = Math.PI; // Face South
+                } else if (count === 1) {
+                    // Player 2: South side, facing North (Z-)
+                    data.pos = { x: 0, y: 0, z: 5 };
+                    data.rot = 0; // Face North
+                }
+                console.log(`[SPAWN DEBUG] Using default spawn: (${data.pos.x}, ${data.pos.y}, ${data.pos.z})`);
+            }
+          }
+          console.log(`[SPAWN DEBUG] Creating PlayerState with position: (${data.pos.x}, ${data.pos.y}, ${data.pos.z})`);
           pState = new PlayerState(id, data.pos);
           room.playerStates.set(id, pState);
         }
+        
+        // Update nickname if provided
+        if (data.nick) pState.nick = data.nick;
+
+        // Always update position and rotation (removed DEBUG_STATIC_TEST lock)
+        // Client-side movement lock is sufficient for testing
         pState.position.set(data.pos.x, data.pos.y, data.pos.z);
         pState.rotation = data.rot || 0;
+
         
         // Record to history for lag compensation
         let history = room.positionHistory.get(id);
