@@ -286,7 +286,7 @@ html {
   display: flex;
   gap: 10px;
   pointer-events: auto;
-  z-index: 300;
+  z-index: 50; /* Below menus (z-index: 300) */
 }
 
 .slot {

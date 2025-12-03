@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 
 export class MultiplayerClient {
-    constructor({ player, scene, url, nick = 'Player', color = '#29b6f6', roomCode = 'PUBLIC', settings = null }) {
+    constructor(options) {
+        const { player, scene, url, nick = 'Player', color = '#29b6f6', roomCode = 'PUBLIC', settings = null, customSpawn = null } = options;
         this.player = player;
         this.scene = scene;
         this.url = url;
         this.nick = nick;
         this.color = color;
         this.roomCode = roomCode || 'PUBLIC';
+        this.customSpawnStr = customSpawn || null; // Store as string "x,y,z"
         this.socket = null;
         this.id = null;
         this.others = new Map(); // id -> mesh
@@ -41,6 +43,7 @@ export class MultiplayerClient {
         };
         this.lastPingSent = 0;
         this.pingInterval = 5;
+        this.showHitboxes = false; // Debug: toggle bounding boxes
         this.connect();
     }
 
@@ -149,8 +152,68 @@ export class MultiplayerClient {
                     mesh.userData.custom = data.custom ? { ...data.custom } : null;
                 }
             } else if (data.type === 'hit') {
+                // DEPRECATED: Old direct hit messages
+                console.warn('[DEPRECATED] Received old hit message, use hit-confirm');
                 if (this.onHit) {
                     this.onHit(data);
+                }
+            } else if (data.type === 'hit-confirm') {
+                // Show hit marker
+                if (data.position && this.scene) {
+                    this.createHitMarker(data.position);
+                }
+                
+                // Detailed Debug Log
+                if (data.hitPoint && data.region) {
+                    console.log(`%c[HIT CONFIRM] Region: ${data.region} | Damage: ${data.damage}`, 'color: #00ff00; font-weight: bold; font-size: 14px;');
+                    console.log(`Exact Hit: (${data.hitPoint.x.toFixed(2)}, ${data.hitPoint.y.toFixed(2)}, ${data.hitPoint.z.toFixed(2)})`);
+                    
+                    // Visual feedback on screen (optional, but requested)
+                    const debugInfo = document.getElementById('debug-info');
+                    if (debugInfo) {
+                        debugInfo.style.display = 'block';
+                        document.getElementById('debug-target-name').innerText = `HIT: ${data.region}`;
+                        document.getElementById('debug-target-id').innerText = `DMG: ${data.damage}`;
+                    }
+                }
+
+                // Server confirmed a hit
+                if (this.onHitConfirm) {
+                    this.onHitConfirm(data);
+                }
+                
+                // If we are the target, take damage
+                if (data.targetId === this.id && this.player) {
+                    if (typeof this.player.takeDamage === 'function') {
+                        this.player.takeDamage(data.damage);
+                    }
+                }
+                
+                // Visual feedback for all clients
+                if (data.position && this.scene) {
+                    this.createHitMarker(data.position);
+                    
+                    /* DISABLED: Debug raycast line (performance issue)
+                    // DEBUG: Show raycast direction line
+                    if (data.shooterId === this.id && data.direction && this.player) {
+                        // Draw line from shooter to hit point
+                        const start = this.player.mesh.position.clone();
+                        start.y += 1.6; // Eye level
+                        const end = new THREE.Vector3(data.hitPoint.x, data.hitPoint.y, data.hitPoint.z);
+                        
+                        const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+                        const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+                        const line = new THREE.Line(geometry, material);
+                        this.scene.add(line);
+                        
+                        // Remove after 2 seconds
+                        setTimeout(() => {
+                            this.scene.remove(line);
+                            geometry.dispose();
+                            material.dispose();
+                        }, 2000);
+                    }
+                    */
                 }
             } else if (data.type === 'host-changed') {
                 this.isHost = data.hostId === this.id;
@@ -176,9 +239,18 @@ export class MultiplayerClient {
                 }
             } else if (data.type === 'player-dead') {
                 if (data.id) {
-                    this.deadPeers.add(data.id);
-                    this.killRemote(data.id);
-                    if (this.onPeerDeath) this.onPeerDeath(data.id);
+                    // Handle local player death
+                    if (data.id === this.id) {
+                        if (this.player && typeof this.player.die === 'function' && !this.player.isDead) {
+                            console.log('[MP] Received own death confirmation from server');
+                            this.player.die();
+                        }
+                    } else {
+                        // Handle remote player death
+                        this.deadPeers.add(data.id);
+                        this.killRemote(data.id);
+                        if (this.onPeerDeath) this.onPeerDeath(data.id);
+                    }
                 }
             } else if (data.type === 'pong' && typeof data.ts === 'number') {
                 const rtt = this._now() - data.ts;
@@ -252,36 +324,40 @@ export class MultiplayerClient {
         try {
             const clone = this.player.mesh.clone(true);
             const pivots = { leftArm: null, rightArm: null, leftLeg: null, rightLeg: null };
-            clone.traverse(n => {
-                if (n.isMesh) {
-                    n.castShadow = true;
-                    n.receiveShadow = true;
-                    if (n.material && n.material.clone) {
+        clone.traverse(n => {
+            if (n.isMesh) {
+                n.castShadow = true;
+                n.receiveShadow = true;
+                if (n.material && n.material.clone) {
+                    n.material = n.material.clone();
+                }
+                if (n.geometry && n.geometry.clone) {
+                    n.geometry = n.geometry.clone();
+                }
+                // Apply color override to shirt/torso
+                if (colorOverride && n.material && !Array.isArray(n.material)) {
+                    const name = (n.userData && n.userData.gameName) ? n.userData.gameName.toLowerCase() : '';
+                    // Fallback: also check geometry size (torso roughly 0.6x0.8x0.3)
+                    const isTorso = name.includes('body') || name.includes('torso') || name.includes('shirt') || name.includes('clothes') || (n.geometry && n.geometry.parameters && Math.abs(n.geometry.parameters.width - 0.6) < 0.05);
+                    if (isTorso) {
                         n.material = n.material.clone();
-                    }
-                    if (n.geometry && n.geometry.clone) {
-                        n.geometry = n.geometry.clone();
-                    }
-                    // Apply color override to shirt/torso
-                    if (colorOverride && n.material && !Array.isArray(n.material)) {
-                        const name = (n.userData && n.userData.gameName) ? n.userData.gameName.toLowerCase() : '';
-                        // Fallback: also check geometry size (torso roughly 0.6x0.8x0.3)
-                        const isTorso = name.includes('body') || name.includes('torso') || name.includes('shirt') || name.includes('clothes') || (n.geometry && n.geometry.parameters && Math.abs(n.geometry.parameters.width - 0.6) < 0.05);
-                        if (isTorso) {
-                            n.material = n.material.clone();
-                            n.material.color = new THREE.Color(colorOverride);
-                        }
+                        n.material.color = new THREE.Color(colorOverride);
                     }
                 }
-                // Prevent controls/extra refs on cloned object
-                if (n.userData) n.userData = { ...n.userData };
-                if (n.name === 'leftArmPivot') pivots.leftArm = n;
-                else if (n.name === 'rightArmPivot') pivots.rightArm = n;
-                else if (n.name === 'leftLegPivot') pivots.leftLeg = n;
-                else if (n.name === 'rightLegPivot') pivots.rightLeg = n;
-            });
-            clone.userData = { ...(clone.userData || {}), pivots };
-            return clone;
+            }
+            // Prevent controls/extra refs on cloned object
+            if (n.userData) n.userData = { ...n.userData };
+            if (n.name === 'leftArmPivot') pivots.leftArm = n;
+            else if (n.name === 'rightArmPivot') pivots.rightArm = n;
+            else if (n.name === 'leftLegPivot') pivots.leftLeg = n;
+            else if (n.name === 'rightLegPivot') pivots.rightLeg = n;
+        });
+        clone.userData = { ...(clone.userData || {}), pivots };
+        
+        // Add debug hitbox (invisible by default)
+        this.addDebugHitbox(clone);
+        
+        return clone;
         } catch (e) {
             console.warn('Failed to clone player avatar:', e);
             return null;
@@ -342,6 +418,16 @@ export class MultiplayerClient {
         // Use camera forward vector to derive facing; send forward dir explicitly to avoid wrap issues
         let rotToSend = 0;
         let fwd = { x: 0, z: 1 };
+        
+        // USER REQUEST: Remove mouse/camera synchronization
+        // Only use mesh rotation if available, otherwise default to 0
+        if (this.player && this.player.mesh && this.player.mesh.rotation) {
+             rotToSend = this.player.mesh.rotation.y;
+             fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
+        }
+        
+        /* 
+        // DISABLED: Camera-based rotation sync
         if (this.player && this.player.camera && this.player.camera.getWorldDirection) {
             const dir = new THREE.Vector3();
             this.player.camera.getWorldDirection(dir);
@@ -359,9 +445,24 @@ export class MultiplayerClient {
             rotToSend = this._wrapAngle(viewYaw);
             fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
         }
-        // Align model forward (+Z) with camera forward (-Z)
-        rotToSend = this._wrapAngle(rotToSend + Math.PI);
-        fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
+        */
+        // NOTE: Removed Math.PI offset that was causing inverted facing
+        // rotToSend = this._wrapAngle(rotToSend + Math.PI);
+        // fwd = { x: Math.sin(rotToSend), z: Math.cos(rotToSend) };
+        
+        // Parse custom spawn from settings
+        let customSpawn = null;
+        if (this.customSpawnStr && typeof this.customSpawnStr === 'string') {
+            const parts = this.customSpawnStr.split(',').map(s => parseFloat(s.trim()));
+            if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+                customSpawn = {
+                    x: parts[0],
+                    y: parts[1],
+                    z: parts[2]
+                };
+            }
+        }
+
         const payload = {
             type: 'state',
             pos: { x: pos.x, y: pos.y, z: pos.z },
@@ -371,7 +472,8 @@ export class MultiplayerClient {
             color: this.color,
             anim,
             ts: this._now(),
-            custom: { ...this.getCustomization() }
+            custom: { ...this.getCustomization() },
+            customSpawn // Send requested spawn to server
         };
 
         // Only send if something meaningful changed, or as a heartbeat every few seconds
@@ -425,12 +527,32 @@ export class MultiplayerClient {
     }
 
     sendHit(targetId, amount) {
+        // DEPRECATED: Old client-side hit detection
+        // Kept for backward compatibility but server ignores this
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
         if (!targetId || typeof amount !== 'number') return;
         const payload = { type: 'hit', targetId, amount };
         const msg = JSON.stringify(payload);
         try { this.socket.send(msg); } catch (e) {}
         this.trackTx(msg.length);
+    }
+
+    sendShoot(direction, weaponName, origin = null) {
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+        
+        const payload = {
+            type: 'shoot',
+            direction: { x: direction.x, y: direction.y, z: direction.z },
+            weapon: weaponName || 'Pistol',
+            ts: this._now()
+        };
+        
+        // Include origin if provided (for TPS camera)
+        if (origin) {
+            payload.origin = { x: origin.x, y: origin.y, z: origin.z };
+        }
+        
+        this.socket.send(JSON.stringify(payload));
     }
 
     getPeerCount() {
@@ -620,9 +742,9 @@ export class MultiplayerClient {
                 mesh.position.copy(this._tmpVec);
                 if (mesh.rotation) {
                     if (typeof latest.rot === 'number') {
-                        mesh.rotation.y = this._wrapAngle(latest.rot + this.remoteFaceOffset);
+                        mesh.rotation.y = this._wrapAngle(latest.rot); // Removed remoteFaceOffset
                     } else if (latest.fwd && typeof latest.fwd.x === 'number' && typeof latest.fwd.z === 'number') {
-                        mesh.rotation.y = this._wrapAngle(Math.atan2(latest.fwd.x, latest.fwd.z) + this.remoteFaceOffset);
+                        mesh.rotation.y = this._wrapAngle(Math.atan2(latest.fwd.x, latest.fwd.z)); // Removed remoteFaceOffset
                     }
                 }
                 this.applyRemoteAnimation(mesh, latest.anim);
@@ -653,8 +775,9 @@ export class MultiplayerClient {
             const baseYawB = typeof b.rot === 'number'
                 ? b.rot
                 : (typeof b.fwd?.x === 'number' && typeof b.fwd?.z === 'number' ? Math.atan2(b.fwd.x, b.fwd.z) : baseYawA);
-            const yawA = baseYawA + this.remoteFaceOffset;
-            const yawB = baseYawB + this.remoteFaceOffset;
+            // Removed remoteFaceOffset adjustments
+            const yawA = baseYawA;
+            const yawB = baseYawB;
             const wrapAngle = (ang) => {
                 while (ang > Math.PI) ang -= Math.PI * 2;
                 while (ang < -Math.PI) ang += Math.PI * 2;
@@ -662,7 +785,8 @@ export class MultiplayerClient {
             };
             const deltaYaw = yawB - yawA;
             const interpYaw = yawA + deltaYaw * alpha;
-            if (mesh.rotation) mesh.rotation.y = wrapAngle(interpYaw + this.remoteFaceOffset);
+            if (mesh.rotation) mesh.rotation.y = wrapAngle(interpYaw); // Removed remoteFaceOffset
+
 
             // Interpolate simple limb rotations
             const lerpVal = (x1, x2) => {
@@ -779,5 +903,55 @@ export class MultiplayerClient {
         while (diff > Math.PI) { a -= Math.PI * 2; diff = a - prev; }
         while (diff < -Math.PI) { a += Math.PI * 2; diff = a - prev; }
         return a;
+    }
+    createHitMarker(position) {
+        try {
+            const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000, 
+                transparent: true,
+                opacity: 0.8 
+            });
+            const marker = new THREE.Mesh(geometry, material);
+            marker.position.set(position.x, position.y, position.z);
+            this.scene.add(marker);
+            
+            setTimeout(() => {
+                this.scene.remove(marker);
+                geometry.dispose();
+                material.dispose();
+            }, 200);
+        } catch (e) {
+            // Non-fatal visual feedback error
+        }
+    }
+    
+    addDebugHitbox(mesh) {
+        // Add wireframe sphere matching server hitbox (radius 0.8)
+        const geometry = new THREE.SphereGeometry(0.8, 16, 12);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000, 
+            wireframe: true,
+            transparent: true,
+            opacity: 0.5
+        });
+        const hitbox = new THREE.Mesh(geometry, material);
+        hitbox.position.y = 0.9; // Match server hitbox offset
+        hitbox.name = 'debugHitbox';
+        hitbox.visible = false; // Hidden by default
+        mesh.add(hitbox);
+    }
+    
+    toggleHitboxes() {
+        this.showHitboxes = !this.showHitboxes;
+        console.log(`[DEBUG] Hitboxes ${this.showHitboxes ? 'ON' : 'OFF'}`);
+        
+        // Toggle visibility for all remote players
+        this.others.forEach(mesh => {
+            const hitbox = mesh.getObjectByName('debugHitbox');
+            if (hitbox) {
+                hitbox.visible = this.showHitboxes;
+            }
+        });
     }
 }
