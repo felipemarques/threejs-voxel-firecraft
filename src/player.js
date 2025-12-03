@@ -29,10 +29,13 @@ export class Player {
         this.selectedBlockHelper = null;
 
         // Stats
+        this.maxHealth = 100;
         this.health = 100;
+        this.maxShield = 100;
         this.shield = 100;
         this.isDead = false;
         // Stamina for punching
+        this.maxStamina = 100;
         this.stamina = 100; // max stamina
         this.punchCount = 0; // punches since last rest
         this.isTired = false; // fatigue flag
@@ -78,10 +81,15 @@ export class Player {
             // Bare hands only for Matrix AI Builder
             this.weapons = [this.allWeapons[1]]; // Fist
         } else {
-            // Punch + Pistol
+            // All weapons available (Pistol, Fist, Rifle, Sniper, SMG, Shotgun, DMR)
             this.weapons = [
-                this.allWeapons[1], // Soco
-                this.allWeapons[0]  // Pistola
+                this.allWeapons[1],  // Fist (Slot 1)
+                this.allWeapons[0],  // Pistol (Slot 2)
+                this.allWeapons[2],  // Rifle
+                this.allWeapons[3],  // Sniper
+                this.allWeapons[4],  // SMG
+                this.allWeapons[5],  // Shotgun
+                this.allWeapons[6]   // DMR
             ];
         }
 
@@ -132,7 +140,7 @@ export class Player {
         this.initControls();
 
         // Sound effects pool (gunshots)
-        this.sfxVolume = 0.7;
+        this.sfxVolume = settings.sfxVolume !== undefined ? settings.sfxVolume / 100 : 0.7;
         // Sound effects (Web Audio API to avoid WebMediaPlayer limits)
         this.sfxVolume = 0.7;
         this.gunshotBuffer = null;
@@ -263,6 +271,10 @@ export class Player {
         } catch (e) {
             console.warn('Web Audio API not supported:', e);
         }
+    }
+
+    setSFXVolume(volume) {
+        this.sfxVolume = Math.max(0, Math.min(1, volume));
     }
 
     separateFromRemotePlayers() {
@@ -1053,7 +1065,20 @@ export class Player {
         // Multiplayer: Send shoot input to authoritative server
         if (this.multiplayerClient && typeof this.multiplayerClient.sendShoot === 'function') {
             const direction = raycaster.ray.direction.clone();
-            this.multiplayerClient.sendShoot(direction, weapon.name);
+            const origin = raycaster.ray.origin.clone();
+            
+            // DETAILED DEBUG LOGGING
+            console.log('[CLIENT SHOOT DEBUG]');
+            console.log('  Camera pos:', this.camera.position);
+            console.log('  Camera rot:', this.camera.rotation);
+            console.log('  Mesh pos:', this.mesh.position);
+            console.log('  Mesh rot:', this.mesh.rotation.y.toFixed(2));
+            console.log('  Direction:', `(${direction.x.toFixed(3)}, ${direction.y.toFixed(3)}, ${direction.z.toFixed(3)})`);
+            console.log('  Direction length:', direction.length().toFixed(3));
+            console.log('  Raycaster origin:', origin);
+            
+            // Send origin + direction to server
+            this.multiplayerClient.sendShoot(direction, weapon.name, origin);
         }
 
         // Check remote multiplayer players for client-side visual prediction
@@ -1269,6 +1294,9 @@ export class Player {
     update(dt) {
         if (this.isDead) return;
 
+        // Update Stamina
+        this.updateStamina(dt);
+
         // Vehicle prompt logic (works even without pointer lock)
         this.updateVehiclePrompt();
 
@@ -1280,6 +1308,7 @@ export class Player {
 
         // Allow updates when PointerLock is active OR when touch controls requested movement
         const canMove = (this.controls && this.controls.isLocked === true) || this.allowTouchMovement === true;
+        
         if (canMove) {
             // Physics
         this.velocity.x -= this.velocity.x * 10.0 * dt;
@@ -1368,9 +1397,9 @@ export class Player {
                 // Character stays facing last direction.
             }
 
+            // Vertical Movement (Y Axis) with Gravity
             this.mesh.position.y += this.velocity.y * dt;
 
-            if (!this.isFloating) {
             if (!this.isFloating) {
                 if (this.mesh.position.y < 0) {
                     this.velocity.y = 0;
@@ -1385,7 +1414,7 @@ export class Player {
                     this.canJump = true;
                 }
             }
-            }
+            
             const onGround = (!this.isFloating) && (this.canJump || this.mesh.position.y <= 0.01);
 
             // Footsteps loop when moving on ground
@@ -2031,12 +2060,13 @@ export class Player {
     }
 
     updateAnimations(dt) {
-        const isMoving = this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
+        // Movement
+        const moving = this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
         
         // Leg Animation (faster when sprinting)
         const baseAnimSpeed = 10;
-        const sprintFactor = (this.isSprinting && isMoving) ? 1.8 : 1.0;
-        if (isMoving) {
+        const sprintFactor = (this.isSprinting && moving) ? 1.8 : 1.0;
+        if (moving) {
             this.animTime += dt * baseAnimSpeed * sprintFactor;
             const angle = Math.sin(this.animTime) * (0.5 * sprintFactor);
             this.leftLegPivot.rotation.x = angle;
@@ -2082,7 +2112,7 @@ export class Player {
 
         } else {
             // Idle / Walking Arms
-            if (isMoving) {
+            if (moving) {
                 const armSwing = Math.sin(this.animTime) * 0.5 * sprintFactor;
                 this.leftArmPivot.rotation.x = -armSwing;
                 this.rightArmPivot.rotation.x = armSwing;
@@ -2107,25 +2137,20 @@ export class Player {
     }
 
     punch() {
-        // Prevent punching when fatigued
-        if (this.isTired) return;
+        // Prevent punching when out of stamina
+        if (this.stamina < 15) return;
         if (this.isPunching || this.isBlocking) return;
+        
         this.isPunching = true;
         this.punchTime = 0;
         this.punchSide = this.punchSide === 0 ? 1 : 0; // Toggle side
 
-        // Increment punch counter and handle fatigue
-        this.punchCount++;
-        if (this.punchCount >= 20) {
-            this.isTired = true;
-            // Reduce stamina as penalty
-            this.stamina = Math.max(0, this.stamina - 20);
-            // Recover after a short cooldown (e.g., 3 seconds)
-            setTimeout(() => {
-                this.isTired = false;
-                this.punchCount = 0;
-            }, 3000);
-        }
+        // Consume stamina
+        this.stamina = Math.max(0, this.stamina - 15);
+        
+        // Reset fatigue logic (deprecated but kept for safety)
+        this.isTired = false;
+        this.punchCount = 0;
 
         // Check hit
         // Simple distance check in front of player
@@ -2654,6 +2679,7 @@ export class Player {
         // Play hurt sound when taking damage (throttled)
         if (amount > 0) {
             this.queueHurtBeat();
+            // this.health = Math.max(1, this.health); // Min health 1 for testing
         }
 
         if (this.health <= 0) {
@@ -2691,6 +2717,11 @@ export class Player {
         if (this.enemyManager && this.enemyManager.enemies) {
             const enemyMeshes = this.enemyManager.enemies.map(e => e.mesh);
             obstacles = obstacles.concat(enemyMeshes);
+        }
+        
+        // PERFORMANCE: Early return if no obstacles (Matrix mode, empty worlds)
+        if (obstacles.length === 0) {
+            return false;
         }
 
         const climbHeight = 1.5;
@@ -2731,5 +2762,16 @@ export class Player {
             }
         }
         return false;
+    }
+    updateStamina(dt) {
+        // Regenerate stamina when not sprinting or jumping
+        if (!this.isSprinting && this.onGround) {
+            this.stamina = Math.min(this.maxStamina, this.stamina + 15 * dt);
+        }
+        
+        // Update HUD stamina bar
+        if (this.hud && typeof this.hud.updateStamina === 'function') {
+            this.hud.updateStamina(this.stamina, this.maxStamina);
+        }
     }
 }
