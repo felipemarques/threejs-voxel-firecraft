@@ -740,17 +740,21 @@ class Game {
             });
             
             // Initialize: if saved value is not in select, show custom field
-            const savedServer = getSetting('mpServer');
-            if (savedServer) {
-                const optionExists = Array.from(mpServerSelect.options).some(opt => opt.value === savedServer);
-                if (optionExists && savedServer !== 'custom') {
-                    mpServerSelect.value = savedServer;
-                    mpServerInput.value = savedServer;
-                    mpServerInput.style.display = 'none';
-                } else {
-                    mpServerSelect.value = 'custom';
-                    mpServerInput.value = savedServer;
-                    mpServerInput.style.display = 'block';
+            const savedSettings = localStorage.getItem('voxel-firecraft-settings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                const savedServer = settings.mpServer;
+                if (savedServer) {
+                    const optionExists = Array.from(mpServerSelect.options).some(opt => opt.value === savedServer);
+                    if (optionExists && savedServer !== 'custom') {
+                        mpServerSelect.value = savedServer;
+                        mpServerInput.value = savedServer;
+                        mpServerInput.style.display = 'none';
+                    } else {
+                        mpServerSelect.value = 'custom';
+                        mpServerInput.value = savedServer;
+                        mpServerInput.style.display = 'block';
+                    }
                 }
             }
         }
