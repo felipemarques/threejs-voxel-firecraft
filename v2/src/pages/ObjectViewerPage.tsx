@@ -172,9 +172,10 @@ export function ObjectViewerPage() {
     function animate() {
       requestAnimationFrame(animate)
       
-      // Use THREE.Clock.getDelta() like v1 - gets REAL time between frames
+      // EXACTLY like v1: dt * animSpeed, wrapper increments by dt * 10
       const dt = clock.getDelta()
-      animTimeRef.current += dt * animSpeedRef.current * 10
+      const adjustedDt = dt * animSpeedRef.current
+      animTimeRef.current += adjustedDt * 10
 
       // Apply animation
       if (playerDataRef.current) {
@@ -334,31 +335,31 @@ export function ObjectViewerPage() {
           <p className="text-sm text-slate-400">male-character</p>
         </div>
 
-        {/* Controls Panel */}
-        <div className="absolute bottom-6 right-6 w-80 bg-slate-950/95 backdrop-blur-sm border border-slate-800 rounded-lg p-4 max-h-[calc(100vh-120px)] overflow-y-auto">
-          <div className="space-y-4">
+        {/* Controls Panel - More compact and responsive */}
+        <div className="absolute bottom-4 right-4 w-72 bg-slate-950/95 backdrop-blur-sm border border-slate-800 rounded-lg p-3 max-h-[calc(100vh-100px)] overflow-y-auto">
+          <div className="space-y-3">
             {/* Player Customization */}
-            <div className="pb-4 border-b border-slate-700">
-              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">
-                Player Customization
+            <div className="pb-3 border-b border-slate-700">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                Customization
               </h3>
               
               {/* Shirt Color */}
-              <div className="mb-3">
-                <Label className="text-sm text-slate-400 mb-2 block">Shirt Color</Label>
+              <div className="mb-2">
+                <Label className="text-xs text-slate-400 mb-1 block">Shirt Color</Label>
                 <input
                   type="color"
                   value={shirtColor}
                   onChange={(e) => setShirtColor(e.target.value)}
-                  className="w-full h-10 rounded cursor-pointer"
+                  className="w-full h-8 rounded cursor-pointer"
                 />
               </div>
 
               {/* Mouth Style */}
-              <div className="mb-3">
-                <Label className="text-sm text-slate-400 mb-2 block">Mouth Style</Label>
+              <div className="mb-2">
+                <Label className="text-xs text-slate-400 mb-1 block">Mouth Style</Label>
                 <Select value={mouthStyle} onValueChange={(v) => setMouthStyle(v as MouthStyle)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -372,26 +373,26 @@ export function ObjectViewerPage() {
               </div>
 
               {/* Accessories */}
-              <div className="mb-3">
-                <Label className="text-sm text-slate-400 mb-2 block">Accessories</Label>
-                <div className="flex gap-4">
-                  <div className="flex items-center space-x-2">
+              <div className="mb-2">
+                <Label className="text-xs text-slate-400 mb-1 block">Accessories</Label>
+                <div className="flex gap-3">
+                  <div className="flex items-center space-x-1">
                     <Checkbox
                       id="hat"
                       checked={showHat}
                       onCheckedChange={(checked) => setShowHat(checked as boolean)}
                     />
-                    <label htmlFor="hat" className="text-sm text-slate-300">
+                    <label htmlFor="hat" className="text-xs text-slate-300 cursor-pointer">
                       Hat
                     </label>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1">
                     <Checkbox
                       id="glasses"
                       checked={showGlasses}
                       onCheckedChange={(checked) => setShowGlasses(checked as boolean)}
                     />
-                    <label htmlFor="glasses" className="text-sm text-slate-300">
+                    <label htmlFor="glasses" className="text-xs text-slate-300 cursor-pointer">
                       Glasses
                     </label>
                   </div>
@@ -399,10 +400,10 @@ export function ObjectViewerPage() {
               </div>
 
               {/* Weapon */}
-              <div className="mb-3">
-                <Label className="text-sm text-slate-400 mb-2 block">Weapon</Label>
+              <div className="mb-2">
+                <Label className="text-xs text-slate-400 mb-1 block">Weapon</Label>
                 <Select value={weapon} onValueChange={(v) => setWeapon(v as WeaponType)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -419,7 +420,8 @@ export function ObjectViewerPage() {
 
               <Button
                 onClick={handleApplySettings}
-                className="w-full bg-cyan-600 hover:bg-cyan-700"
+                size="sm"
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-xs"
               >
                 Apply Changes
               </Button>
@@ -427,8 +429,8 @@ export function ObjectViewerPage() {
 
             {/* Animation Controls */}
             <div>
-              <label className="text-sm text-slate-400 block mb-2 font-semibold">Animation</label>
-              <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-slate-400 block mb-1.5 font-semibold">Animation</label>
+              <div className="grid grid-cols-2 gap-1.5">
                 <Button
                   size="sm"
                   className={currentAnimation === 'idle' ? 'bg-cyan-600 hover:bg-cyan-700' : ''}
@@ -466,8 +468,8 @@ export function ObjectViewerPage() {
 
             {/* Animation Speed */}
             <div>
-              <label className="text-sm text-slate-400 block mb-2">
-                Animation Speed: <span className="text-white font-semibold">{animSpeed.toFixed(1)}x</span>
+              <label className="text-xs text-slate-400 block mb-1.5">
+                Speed: <span className="text-white font-semibold">{animSpeed.toFixed(1)}x</span>
               </label>
               <Slider
                 value={[animSpeed]}
@@ -481,8 +483,8 @@ export function ObjectViewerPage() {
 
             {/* Zoom Distance */}
             <div>
-              <label className="text-sm text-slate-400 block mb-2">
-                Zoom Distance: <span className="text-white font-semibold">{zoomDistance.toFixed(1)}</span>
+              <label className="text-xs text-slate-400 block mb-1.5">
+                Zoom: <span className="text-white font-semibold">{zoomDistance.toFixed(1)}</span>
               </label>
               <Slider
                 value={[zoomDistance]}
@@ -496,8 +498,8 @@ export function ObjectViewerPage() {
 
             {/* Camera Controls */}
             <div>
-              <label className="text-sm text-slate-400 block mb-2 font-semibold">Camera</label>
-              <div className="flex gap-2">
+              <label className="text-xs text-slate-400 block mb-1.5 font-semibold">Camera</label>
+              <div className="flex gap-1.5">
                 <Button
                   size="sm"
                   variant="outline"
