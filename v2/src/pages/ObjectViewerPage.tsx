@@ -379,42 +379,51 @@ export function ObjectViewerPage() {
           <div className="space-y-[15px]">
             {/* Player Controls */}
             <div>
-              <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Shirt Color</label>
-              <div className="flex gap-[5px] items-center mb-2">
-                <input type="color" value={shirtColor} onChange={(e) => setShirtColor(e.target.value)} className="flex-1" />
+              {/* Color Pickers Row */}
+              <div className="grid grid-cols-2 gap-3 mb-2">
+                <div>
+                  <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Shirt Color</label>
+                  <input type="color" value={shirtColor} onChange={(e) => setShirtColor(e.target.value)} className="w-full h-10" />
+                </div>
+                {characterType === 'female' && (
+                  <div>
+                    <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Hair Color</label>
+                    <input type="color" value={hairColor} onChange={(e) => setHairColor(e.target.value)} className="w-full h-10" />
+                  </div>
+                )}
               </div>
 
-              {characterType === 'female' && (
-                <>
-                  <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Hair Color</label>
-                  <div className="flex gap-[5px] items-center mb-2">
-                    <input type="color" value={hairColor} onChange={(e) => setHairColor(e.target.value)} className="flex-1" />
+              {/* Style Selectors Row */}
+              <div className={`grid ${characterType === 'female' ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mb-2`}>
+                {characterType === 'female' && (
+                  <div>
+                    <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Hair Style</label>
+                    <Select value={hairStyle} onValueChange={(v) => setHairStyle(v as HairStyle)}>
+                      <SelectTrigger className="w-full p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="long">Long</SelectItem>
+                        <SelectItem value="ponytail">Ponytail</SelectItem>
+                        <SelectItem value="short">Short</SelectItem>
+                        <SelectItem value="bun">Bun</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Hair Style</label>
-                  <Select value={hairStyle} onValueChange={(v) => setHairStyle(v as HairStyle)}>
-                    <SelectTrigger className="w-full mb-2 p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
+                )}
+                
+                <div>
+                  <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Mouth Style</label>
+                  <Select value={mouthStyle} onValueChange={(v) => setMouthStyle(v as MouthStyle)}>
+                    <SelectTrigger className="w-full p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="long">Long</SelectItem>
-                      <SelectItem value="ponytail">Ponytail</SelectItem>
-                      <SelectItem value="short">Short</SelectItem>
-                      <SelectItem value="bun">Bun</SelectItem>
+                      <SelectItem value="serious">Serious</SelectItem>
+                      <SelectItem value="smile">Smile</SelectItem>
+                      <SelectItem value="angry">Angry</SelectItem>
+                      <SelectItem value="surprised">Surprised</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                     </SelectContent>
                   </Select>
-                </>
-              )}
-
-              <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Mouth Style</label>
-              <Select value={mouthStyle} onValueChange={(v) => setMouthStyle(v as MouthStyle)}>
-                <SelectTrigger className="w-full mb-2 p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="serious">Serious</SelectItem>
-                  <SelectItem value="smile">Smile</SelectItem>
-                  <SelectItem value="angry">Angry</SelectItem>
-                  <SelectItem value="surprised">Surprised</SelectItem>
-                  <SelectItem value="none">None</SelectItem>
-                </SelectContent>
-              </Select>
+                </div>
+              </div>
 
               <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Accessories</label>
               <div className="mb-2 flex gap-3 flex-wrap">
