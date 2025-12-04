@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { SettingsDialog } from './SettingsDialog'
 
 const gameModes: Array<{
-  id: GameMode
+  id: GameMode | 'object-viewer'
   title: string
   emoji: string
   description: string
@@ -60,6 +60,13 @@ const gameModes: Array<{
     description: 'Builder com IA',
     route: '/matrix-ai',
   },
+  {
+    id: 'object-viewer',
+    title: 'Object Viewer',
+    emoji: '📦',
+    description: 'Visualizador de objetos e modelos 3D',
+    route: '/object-viewer',
+  },
 ]
 
 export function MainMenu() {
@@ -68,10 +75,12 @@ export function MainMenu() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [clickedCard, setClickedCard] = useState<string | null>(null)
 
-  const handleModeClick = (mode: GameMode, route: string) => {
+  const handleModeClick = (mode: GameMode | 'object-viewer', route: string) => {
     // Visual feedback
     setClickedCard(mode)
-    updateSetting('gameMode', mode)
+    if (mode !== 'object-viewer') {
+      updateSetting('gameMode', mode as GameMode)
+    }
     
     // Short delay for visual effect, then navigate
     setTimeout(() => {
@@ -97,9 +106,9 @@ export function MainMenu() {
         Escolha seu modo de jogo
       </p>
 
-      {/* Game Mode Grid + Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8 max-w-7xl">
-        {/* Game Mode Cards */}
+      {/* Game Mode Grid + Settings + Object Viewer */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-8 max-w-6xl">
+        {/* Game Mode & Tool Cards */}
         {gameModes.map((mode) => (
           <Card
             key={mode.id}

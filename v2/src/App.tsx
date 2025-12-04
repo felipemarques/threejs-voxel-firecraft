@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { MainMenu } from './components/menu/MainMenu'
 import { GameCanvas } from './components/GameCanvas'
 import { PauseMenu } from './components/PauseMenu'
+import { ObjectViewerPage } from './pages/ObjectViewerPage'
 import { useGameSettings } from './stores/gameSettings'
 
 function GamePage() {
@@ -71,6 +72,7 @@ function App() {
     <HashRouter>
       <Routes>
         <Route path="/" element={<MainMenu />} />
+        <Route path="/object-viewer" element={<ObjectViewerPage />} />
         <Route path="/arcade" element={<GamePage />} />
         <Route path="/survival" element={<GamePage />} />
         <Route path="/arena" element={<GamePage />} />
