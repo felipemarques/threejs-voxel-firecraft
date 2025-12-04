@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useGameSettings, type GameMode } from '@/stores/gameSettings'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { SettingsDialog } from './SettingsDialog'
 
 const gameModes: Array<{
   id: GameMode
@@ -64,6 +65,7 @@ const gameModes: Array<{
 export function MainMenu({ onStartGame }: { onStartGame: () => void }) {
   const { gameMode, updateSetting } = useGameSettings()
   const [selectedMode, setSelectedMode] = useState<GameMode>(gameMode)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const handleSelectMode = (mode: GameMode) => {
     setSelectedMode(mode)
@@ -121,6 +123,7 @@ export function MainMenu({ onStartGame }: { onStartGame: () => void }) {
           variant="outline"
           size="lg"
           className="text-xl px-8 py-6"
+          onClick={() => setSettingsOpen(true)}
         >
           ⚙️ Settings
         </Button>
@@ -130,6 +133,9 @@ export function MainMenu({ onStartGame }: { onStartGame: () => void }) {
       <p className="text-slate-500 mt-12 text-sm">
         Press ESC anytime to return to menu
       </p>
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }
