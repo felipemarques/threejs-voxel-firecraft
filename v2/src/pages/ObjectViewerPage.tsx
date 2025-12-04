@@ -393,7 +393,7 @@ export function ObjectViewerPage() {
 
                   <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Hair Style</label>
                   <Select value={hairStyle} onValueChange={(v) => setHairStyle(v as HairStyle)}>
-                    <SelectTrigger className="w-full mb-2 p-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full mb-2 p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="long">Long</SelectItem>
                       <SelectItem value="ponytail">Ponytail</SelectItem>
@@ -406,7 +406,7 @@ export function ObjectViewerPage() {
 
               <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Mouth Style</label>
               <Select value={mouthStyle} onValueChange={(v) => setMouthStyle(v as MouthStyle)}>
-                <SelectTrigger className="w-full mb-2 p-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full mb-2 p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="serious">Serious</SelectItem>
                   <SelectItem value="smile">Smile</SelectItem>
@@ -435,7 +435,7 @@ export function ObjectViewerPage() {
 
               <label className="block mb-[5px] text-[13.6px] text-[#aaa]">Weapon</label>
               <Select value={weapon} onValueChange={(v) => setWeapon(v as WeaponType)}>
-                <SelectTrigger className="w-full mb-2 p-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full mb-2 p-1 bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="pistol">Pistol</SelectItem>
