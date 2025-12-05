@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createMalePlayer } from '@/game/player/MalePlayerObject'
 import { createFemalePlayer } from '@/game/player/FemalePlayerObject'
+import { createFatMalePlayer } from '@/game/player/FatMalePlayerObject'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 type AnimationType = 'idle' | 'walk' | 'attack' | 'jump'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female'
+type CharacterType = 'male' | 'female' | 'fatMale'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -85,23 +86,34 @@ export function ObjectViewerPage() {
 
     const hexColor = parseInt(shirtColor.replace('#', '0x'))
     
-    const playerData = characterType === 'female' 
-      ? createFemalePlayer({
-          shirtColor: hexColor,
-          hairColor: parseInt(hairColor.replace('#', '0x')),
-          hairStyle,
-          mouthStyle,
-          showEarrings,
-          showGlasses,
-          weapon
-        })
-      : createMalePlayer({
-          shirtColor: hexColor,
-          mouthStyle,
-          showHat,
-          showGlasses,
-          weapon
-        })
+    let playerData
+    if (characterType === 'female') {
+      playerData = createFemalePlayer({
+        shirtColor: hexColor,
+        hairColor: parseInt(hairColor.replace('#', '0x')),
+        hairStyle,
+        mouthStyle,
+        showEarrings,
+        showGlasses,
+        weapon
+      })
+    } else if (characterType === 'fatMale') {
+      playerData = createFatMalePlayer({
+        shirtColor: hexColor,
+        mouthStyle,
+        showHat,
+        showGlasses,
+        weapon
+      })
+    } else {
+      playerData = createMalePlayer({
+        shirtColor: hexColor,
+        mouthStyle,
+        showHat,
+        showGlasses,
+        weapon
+      })
+    }
     
     sceneRef.current.add(playerData.mesh)
     playerDataRef.current = playerData
@@ -354,6 +366,20 @@ export function ObjectViewerPage() {
               </Card>
               
               <Card 
+                onClick={() => setCharacterType('fatMale')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'fatMale' ? 'bg-[#f39c12]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🍔</span>
+                    Fat Male Character
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card 
                 onClick={() => setCharacterType('female')}
                 className={`cursor-pointer border-none ${
                   characterType === 'female' ? 'bg-[#e91e63]' : 'bg-[#444]'
@@ -390,7 +416,7 @@ export function ObjectViewerPage() {
         {/* Object Info */}
         <div className="absolute top-5 right-5 bg-[rgba(0,0,0,0.6)] px-[15px] py-[10px] rounded z-[5] text-right pointer-events-none">
           <h3 className="text-xl font-bold text-[#00cec9] m-0">
-            {characterType === 'female' ? 'Female' : 'Male'} Character
+            {characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character
           </h3>
           <p className="text-[14.4px] text-[#aaa] m-0">
             {characterType}-character
