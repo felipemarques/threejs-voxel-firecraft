@@ -6,6 +6,8 @@ import { createMalePlayer } from '@/game/player/MalePlayerObject'
 import { createFemalePlayer } from '@/game/player/FemalePlayerObject'
 import { createFatMalePlayer } from '@/game/player/FatMalePlayerObject'
 import { createNormalZombie } from '@/game/enemies/NormalZombieObject'
+import { createBigZombie } from '@/game/enemies/BigZombieObject'
+import { createFatZombie } from '@/game/enemies/FatZombieObject'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -14,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 type AnimationType = 'idle' | 'walk' | 'attack' | 'jump'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie'
+type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -90,6 +92,10 @@ export function ObjectViewerPage() {
     let playerData
     if (characterType === 'zombie') {
       playerData = createNormalZombie()
+    } else if (characterType === 'bigZombie') {
+      playerData = createBigZombie()
+    } else if (characterType === 'fatZombie') {
+      playerData = createFatZombie()
     } else if (characterType === 'female') {
       playerData = createFemalePlayer({
         shirtColor: hexColor,
@@ -417,6 +423,34 @@ export function ObjectViewerPage() {
                   </CardTitle>
                 </CardHeader>
               </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('bigZombie')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'bigZombie' ? 'bg-[#7d3c98]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🧟‍♂️</span>
+                    Big Zombie (2x)
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('fatZombie')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'fatZombie' ? 'bg-[#27ae60]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🧟‍♀️</span>
+                    Fat Zombie
+                  </CardTitle>
+                </CardHeader>
+              </Card>
             </div>
           </div>
         </div>
@@ -442,7 +476,11 @@ export function ObjectViewerPage() {
         <div className="absolute top-5 right-5 bg-[rgba(0,0,0,0.6)] px-[15px] py-[10px] rounded z-[5] text-right pointer-events-none">
           <h3 className="text-xl font-bold text-[#00cec9] m-0">
             {characterType === 'zombie' 
-              ? 'Normal Zombie' 
+              ? 'Normal Zombie'
+              : characterType === 'bigZombie'
+              ? 'Big Zombie (2x)'
+              : characterType === 'fatZombie'
+              ? 'Fat Zombie' 
               : `${characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character`
             }
           </h3>
@@ -455,7 +493,7 @@ export function ObjectViewerPage() {
         <div className="absolute bottom-5  right-5 w-[300px] bg-[rgba(30,30,30,0.9)] backdrop-blur-[5px] p-[15px] rounded-lg z-10 border border-[#444] max-h-[calc(100vh-100px)] overflow-y-auto">
           <div className="space-y-[15px]">
             {/* Player Controls - Only show for non-zombie characters */}
-            {characterType !== 'zombie' && (
+            {!['zombie', 'bigZombie', 'fatZombie'].includes(characterType) && (
               <div>
                 {/* Color Pickers Row */}
                 <div className="grid grid-cols-2 gap-3 mb-2">
