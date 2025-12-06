@@ -13,6 +13,8 @@ import { createSpider } from '@/game/enemies/SpiderObject'
 import { createVehicle } from '@/game/vehicles/VehicleObject'
 import { createBus } from '@/game/vehicles/BusObject'
 import { createMotorcycle } from '@/game/vehicles/MotorcycleObject'
+import { createOakTree, createAlpineTree, createBush } from '@/game/nature/TreesObject'
+import { createRock, createRockPillar, createFlatBoulder, createCrystalShard } from '@/game/nature/RocksObject'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,7 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 type AnimationType = 'idle' | 'walk' | 'attack' | 'jump'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bus' | 'motorcycle'
+type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bus' | 'motorcycle' | 'oak' | 'alpine' | 'bush' | 'rock' | 'pillar' | 'boulder' | 'crystal'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -108,6 +110,29 @@ export function ObjectViewerPage() {
     } else if (characterType === 'motorcycle') {
       const motoGroup = createMotorcycle()
       playerData = { mesh: motoGroup }
+    }
+    // Nature objects (return THREE.Group directly)
+    else if (characterType === 'oak') {
+      const oakGroup = createOakTree()
+      playerData = { mesh: oakGroup }
+    } else if (characterType === 'alpine') {
+      const alpineGroup = createAlpineTree()
+      playerData = { mesh: alpineGroup }
+    } else if (characterType === 'bush') {
+      const bushGroup = createBush()
+      playerData = { mesh: bushGroup }
+    } else if (characterType === 'rock') {
+      const rockMesh = createRock()
+      playerData = { mesh: rockMesh }
+    } else if (characterType === 'pillar') {
+      const pillarMesh = createRockPillar()
+      playerData = { mesh: pillarMesh }
+    } else if (characterType === 'boulder') {
+      const boulderMesh = createFlatBoulder()
+      playerData = { mesh: boulderMesh }
+    } else if (characterType === 'crystal') {
+      const crystalMesh = createCrystalShard()
+      playerData = { mesh: crystalMesh }
     }
     // Enemies
     else if (characterType === 'zombie') {
@@ -240,7 +265,11 @@ export function ObjectViewerPage() {
       
       // V1 exact: wrapper.update(dt * animSpeed, state)
       // which does: this.animTime += dt * 10
-      if (playerDataRef.current && animSpeedRef.current > 0) {
+      // Skip animation for static objects (vehicles and nature)
+      const staticObjects = ['car', 'truck', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal']
+      const isStaticObject = staticObjects.includes(characterTypeRef.current)
+      
+      if (playerDataRef.current && animSpeedRef.current > 0 && !isStaticObject) {
         animWrapperData.animTime += dt * animSpeedRef.current * 10
         animateCharacter(playerDataRef.current, currentAnimationRef.current, animWrapperData.animTime, animWrapperData)
       }
@@ -645,6 +674,36 @@ export function ObjectViewerPage() {
               </Card>
             </div>
           </div>
+
+          {/* NATURE Section */}
+          <div className="mb-[12px]">
+            <div className="p-[6px_8px] font-bold text-[#dfe6e9] uppercase text-[12px] tracking-[1px] mb-[3px]">
+              NATURE
+            </div>
+            <div className="space-y-1.5">
+              <Card onClick={() => setCharacterType('oak')} className={`cursor-pointer border-none ${characterType === 'oak' ? 'bg-[#6b3f26]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🌳</span>Oak Tree</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('alpine')} className={`cursor-pointer border-none ${characterType === 'alpine' ? 'bg-[#1a5e28]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🌲</span>Alpine Tree</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('bush')} className={`cursor-pointer border-none ${characterType === 'bush' ? 'bg-[#2ca02c]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🌿</span>Bush</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('rock')} className={`cursor-pointer border-none ${characterType === 'rock' ? 'bg-[#7f8c8d]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🪨</span>Rock</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('pillar')} className={`cursor-pointer border-none ${characterType === 'pillar' ? 'bg-[#6d6d6d]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">⛰️</span>Rock Pillar</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('boulder')} className={`cursor-pointer border-none ${characterType === 'boulder' ? 'bg-[#8b8b8b]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🗿</span>Flat Boulder</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('crystal')} className={`cursor-pointer border-none ${characterType === 'crystal' ? 'bg-[#9b59b6]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">💎</span>Crystal Shard</CardTitle></CardHeader>
+              </Card>
+            </div>
+          </div>
         </div>
 
         <div className="p-4 border-t border-[#444]">
@@ -685,12 +744,19 @@ export function ObjectViewerPage() {
               ? 'Bus'
               : characterType === 'motorcycle'
               ? 'Motorcycle' 
+              : characterType === 'oak' ? 'Oak Tree'
+              : characterType === 'alpine' ? 'Alpine Tree'
+              : characterType === 'bush' ? 'Bush'
+              : characterType === 'rock' ? 'Rock'
+              : characterType === 'pillar' ? 'Rock Pillar'
+              : characterType === 'boulder' ? 'Flat Boulder'
+              : characterType === 'crystal' ? 'Crystal Shard'
               : `${characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character`
             }
           </h3>
           <p className="text-[14.4px] text-[#aaa] m-0">
             {characterType}
-          </p>
+</p>
         </div>
 
         {/* Controls Panel */}
@@ -782,29 +848,34 @@ export function ObjectViewerPage() {
               </div>
             )}
 
-            {/* Animation */}
-            <div>
-              <label className="block mb-2 text-[13.6px] text-[#aaa]">Animation</label>
-              <div className="flex gap-[5px] flex-wrap">
-                {(['idle', 'walk', 'attack', 'jump'] as AnimationType[]).map(anim => (
-                  <button
-                    key={anim}
-                    onClick={() => setCurrentAnimation(anim)}
-                    className={`bg-[#444] border-none text-white px-3 py-[6px] rounded cursor-pointer text-[13.6px] transition-colors hover:bg-[#555] ${
-                      currentAnimation === anim ? '!bg-[#00cec9] !text-black font-bold' : ''
-                    }`}
-                  >
-                    {anim.charAt(0).toUpperCase() + anim.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Animation controls - Only for characters and enemies (not vehicles or nature) */}
+            {!['car', 'truck', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal'].includes(characterType) && (
+              <>
+                {/* Animation */}
+                <div>
+                  <label className="block mb-2 text-[13.6px] text-[#aaa]">Animation</label>
+                  <div className="flex gap-[5px] flex-wrap">
+                    {(['idle', 'walk', 'attack', 'jump'] as AnimationType[]).map(anim => (
+                      <button
+                        key={anim}
+                        onClick={() => setCurrentAnimation(anim)}
+                        className={`bg-[#444] border-none text-white px-3 py-[6px] rounded cursor-pointer text-[13.6px] transition-colors hover:bg-[#555] ${
+                          currentAnimation === anim ? '!bg-[#00cec9] !text-black font-bold' : ''
+                        }`}
+                      >
+                        {anim.charAt(0).toUpperCase() + anim.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Animation Speed */}
-            <div>
-              <label className="block mb-2 text-[13.6px] text-[#aaa]">Animation Speed: <span className="text-white">{animSpeed.toFixed(1)}</span>x</label>
-              <input type="range" min="0" max="2" step="0.1" value={animSpeed} onChange={(e) => setAnimSpeed(parseFloat(e.target.value))} className="w-full" />
-            </div>
+                {/* Animation Speed */}
+                <div>
+                  <label className="block mb-2 text-[13.6px] text-[#aaa]">Animation Speed: <span className="text-white">{animSpeed.toFixed(1)}</span>x</label>
+                  <input type="range" min="0" max="2" step="0.1" value={animSpeed} onChange={(e) => setAnimSpeed(parseFloat(e.target.value))} className="w-full" />
+                </div>
+              </>
+            )}
 
             {/* Zoom */}
             <div>
