@@ -8,6 +8,11 @@ import { createFatMalePlayer } from '@/game/player/FatMalePlayerObject'
 import { createNormalZombie } from '@/game/enemies/NormalZombieObject'
 import { createBigZombie } from '@/game/enemies/BigZombieObject'
 import { createFatZombie } from '@/game/enemies/FatZombieObject'
+import { createSlenderman } from '@/game/enemies/SlendermanObject'
+import { createSpider } from '@/game/enemies/SpiderObject'
+import { createVehicle } from '@/game/vehicles/VehicleObject'
+import { createBus } from '@/game/vehicles/BusObject'
+import { createMotorcycle } from '@/game/vehicles/MotorcycleObject'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -16,7 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 type AnimationType = 'idle' | 'walk' | 'attack' | 'jump'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie'
+type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bus' | 'motorcycle'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -90,13 +95,34 @@ export function ObjectViewerPage() {
     const hexColor = parseInt(shirtColor.replace('#', '0x'))
     
     let playerData
-    if (characterType === 'zombie') {
+    // Vehicles (return THREE.Group directly, not { mesh } object)
+    if (characterType === 'car') {
+      const carGroup = createVehicle('car')
+      playerData = { mesh: carGroup }
+    } else if (characterType === 'truck') {
+      const truckGroup = createVehicle('truck')
+      playerData = { mesh: truckGroup }
+    } else if (characterType === 'bus') {
+      const busGroup = createBus()
+      playerData = { mesh: busGroup }
+    } else if (characterType === 'motorcycle') {
+      const motoGroup = createMotorcycle()
+      playerData = { mesh: motoGroup }
+    }
+    // Enemies
+    else if (characterType === 'zombie') {
       playerData = createNormalZombie()
     } else if (characterType === 'bigZombie') {
       playerData = createBigZombie()
     } else if (characterType === 'fatZombie') {
       playerData = createFatZombie()
-    } else if (characterType === 'female') {
+    } else if (characterType === 'slenderman') {
+      playerData = createSlenderman()
+    } else if (characterType === 'spider') {
+      playerData = createSpider()
+    }
+    // Players
+    else if (characterType === 'female') {
       playerData = createFemalePlayer({
         shirtColor: hexColor,
         hairColor: parseInt(hairColor.replace('#', '0x')),
@@ -307,10 +333,17 @@ export function ObjectViewerPage() {
     }
   }, [showBoundingBox, playerDataRef.current])
 
-  // Animation function - v1 exact
+  // Animation function - handles both regular characters and spider
   function animateCharacter(playerData: any, anim: AnimationType, time: number, wrapper: any) {
     const t = time
 
+    // Spider has special animation logic (8 legs with upper/lower pivots)
+    if (playerData.legs && Array.isArray(playerData.legs)) {
+      animateSpider(playerData, anim, t, wrapper)
+      return
+    }
+
+    // Regular character animations (using arm/leg pivots)
     if (anim === 'idle') {
       if (playerData.leftArmPivot) playerData.leftArmPivot.rotation.x = Math.sin(t) * 0.1
       if (playerData.rightArmPivot) playerData.rightArmPivot.rotation.x = -Math.sin(t) * 0.1
@@ -334,6 +367,73 @@ export function ObjectViewerPage() {
     }
     else if (anim === 'jump') {
       playerData.mesh.position.y = wrapper.baseY + Math.abs(Math.sin(t * 2)) * 0.5
+    }
+  }
+
+  // Spider-specific animations (from v1)
+  function animateSpider(playerData: any, anim: AnimationType, t: number, wrapper: any) {
+    if (!playerData.legs) return
+
+    if (anim === 'idle') {
+      // Front legs animate differently (menacing idle)
+      playerData.legs.forEach((leg: any) => {
+        if (leg.index === 0) {
+          const speed = leg.side === 0 ? 1.5 : 1.2
+          const offset = leg.side === 0 ? 0 : 1
+          const wave = Math.sin(t * speed + offset) * 0.2
+          leg.upper.rotation.x = -Math.PI / 4 + wave
+          leg.lower.rotation.x = Math.PI / 1.2 - wave * 0.5
+        } else {
+          // Other legs subtle movement
+          const wave = Math.sin(t * 0.5 + leg.index) * 0.05
+          leg.upper.rotation.x = -Math.PI / 4 + wave
+          leg.lower.rotation.x = Math.PI / 1.2
+        }
+      })
+      // Body bobbing
+      playerData.mesh.position.y = wrapper.baseY + Math.sin(t) * 0.02
+    }
+    else if (anim === 'walk') {
+      // Alternating leg movement
+      playerData.legs.forEach((leg: any) => {
+        const offset = (leg.side + leg.index) % 2 === 0 ? 0 : Math.PI
+        const wave = Math.sin(t * 2 + offset)
+        leg.upper.rotation.x = -Math.PI / 4 + wave * 0.15
+        leg.lower.rotation.x = Math.PI / 1.2 + wave * 0.1
+        // Leg sway
+        if (leg.upper.parent) {
+          leg.upper.parent.rotation.z = wave * 0.2
+        }
+      })
+      // Body bobbing while walking
+      playerData.mesh.position.y = wrapper.baseY + Math.abs(Math.sin(t * 2)) * 0.04
+    }
+    else if (anim === 'attack') {
+      // Front legs strike forward
+      playerData.legs.forEach((leg: any) => {
+        if (leg.index === 0) {
+          const progress = (Math.sin(t * 3) + 1) / 2
+          leg.upper.rotation.x = -Math.PI / 4 - progress * 0.6
+          leg.lower.rotation.x = Math.PI / 1.2 - progress * 0.4
+          if (leg.upper.parent) {
+            leg.upper.parent.rotation.z = -progress * 1.2
+          }
+        }
+      })
+      // Head movement during attack
+      if (playerData.head) {
+        playerData.head.rotation.x = Math.sin(t * 3) * 0.3
+      }
+    }
+    else if (anim === 'jump') {
+      const jumpProgress = Math.abs(Math.sin(t * 1))
+      playerData.mesh.position.y = wrapper.baseY + jumpProgress * 2
+      // Legs curl up during jump
+      playerData.legs.forEach((leg: any) => {
+        const curl = Math.sin(t * 1)
+        leg.upper.rotation.x = -Math.PI / 4 + curl * 0.3
+        leg.lower.rotation.x = Math.PI / 1.2 - curl * 0.3
+      })
     }
   }
 
@@ -366,9 +466,9 @@ export function ObjectViewerPage() {
                   characterType === 'male' ? 'bg-[#0984e3]' : 'bg-[#444]'
                 }`}
               >
-                <CardHeader className="p-3">
-                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
-                    <span className="mr-2 opacity-70">🧑</span>
+                <CardHeader className="p-2">
+                  <CardTitle className="text-xs text-white flex items-center m-0 font-medium">
+                    <span className="mr-1.5 opacity-70 text-sm">🧑</span>
                     Male Character
                   </CardTitle>
                 </CardHeader>
@@ -380,9 +480,9 @@ export function ObjectViewerPage() {
                   characterType === 'fatMale' ? 'bg-[#f39c12]' : 'bg-[#444]'
                 }`}
               >
-                <CardHeader className="p-3">
-                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
-                    <span className="mr-2 opacity-70">🍔</span>
+                <CardHeader className="p-2">
+                  <CardTitle className="text-xs text-white flex items-center m-0 font-medium">
+                    <span className="mr-1.5 opacity-70 text-sm">🍔</span>
                     Fat Male Character
                   </CardTitle>
                 </CardHeader>
@@ -394,9 +494,9 @@ export function ObjectViewerPage() {
                   characterType === 'female' ? 'bg-[#e91e63]' : 'bg-[#444]'
                 }`}
               >
-                <CardHeader className="p-3">
-                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
-                    <span className="mr-2 opacity-70">👩</span>
+                <CardHeader className="p-2">
+                  <CardTitle className="text-xs text-white flex items-center m-0 font-medium">
+                    <span className="mr-1.5 opacity-70 text-sm">👩</span>
                     Female Character
                   </CardTitle>
                 </CardHeader>
@@ -451,6 +551,98 @@ export function ObjectViewerPage() {
                   </CardTitle>
                 </CardHeader>
               </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('slenderman')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'slenderman' ? 'bg-[#1a1a1a]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🕴️</span>
+                    Slenderman
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('spider')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'spider' ? 'bg-[#8b4513]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🕷️</span>
+                    Spider
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
+
+          {/* VEHICLES Section */}
+          <div className="mb-[15px]">
+            <div className="p-[8px_10px] font-bold text-[#dfe6e9] uppercase text-[13.6px] tracking-[1px] mb-[5px]">
+              VEHICLES
+            </div>
+            <div className="space-y-2">
+              <Card 
+                onClick={() => setCharacterType('car')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'car' ? 'bg-[#1976d2]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🚗</span>
+                    Car
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('truck')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'truck' ? 'bg-[#1e3a5f]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🚚</span>
+                    Truck
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('bus')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'bus' ? 'bg-[#f39c12]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🚌</span>
+                    Bus
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+              
+              <Card 
+                onClick={() => setCharacterType('motorcycle')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'motorcycle' ? 'bg-[#2c3e50]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🏍️</span>
+                    Motorcycle
+                  </CardTitle>
+                </CardHeader>
+              </Card>
             </div>
           </div>
         </div>
@@ -480,7 +672,19 @@ export function ObjectViewerPage() {
               : characterType === 'bigZombie'
               ? 'Big Zombie (2x)'
               : characterType === 'fatZombie'
-              ? 'Fat Zombie' 
+              ? 'Fat Zombie'
+              : characterType === 'slenderman'
+              ? 'Slenderman'
+              : characterType === 'spider'
+              ? 'Spider'
+              : characterType === 'car'
+              ? 'Car'
+              : characterType === 'truck'
+              ? 'Truck'
+              : characterType === 'bus'
+              ? 'Bus'
+              : characterType === 'motorcycle'
+              ? 'Motorcycle' 
               : `${characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character`
             }
           </h3>
@@ -492,8 +696,8 @@ export function ObjectViewerPage() {
         {/* Controls Panel */}
         <div className="absolute bottom-5  right-5 w-[300px] bg-[rgba(30,30,30,0.9)] backdrop-blur-[5px] p-[15px] rounded-lg z-10 border border-[#444] max-h-[calc(100vh-100px)] overflow-y-auto">
           <div className="space-y-[15px]">
-            {/* Player Controls - Only show for non-zombie characters */}
-            {!['zombie', 'bigZombie', 'fatZombie'].includes(characterType) && (
+            {/* Player Controls - Only show for player characters (not enemies or vehicles) */}
+            {['male', 'female', 'fatMale'].includes(characterType) && (
               <div>
                 {/* Color Pickers Row */}
                 <div className="grid grid-cols-2 gap-3 mb-2">
