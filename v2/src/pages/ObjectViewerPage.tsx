@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createMalePlayer } from '@/game/player/MalePlayerObject'
 import { createFemalePlayer } from '@/game/player/FemalePlayerObject'
 import { createFatMalePlayer } from '@/game/player/FatMalePlayerObject'
+import { createNormalZombie } from '@/game/enemies/NormalZombieObject'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -13,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 type AnimationType = 'idle' | 'walk' | 'attack' | 'jump'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female' | 'fatMale'
+type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -87,7 +88,9 @@ export function ObjectViewerPage() {
     const hexColor = parseInt(shirtColor.replace('#', '0x'))
     
     let playerData
-    if (characterType === 'female') {
+    if (characterType === 'zombie') {
+      playerData = createNormalZombie()
+    } else if (characterType === 'female') {
       playerData = createFemalePlayer({
         shirtColor: hexColor,
         hairColor: parseInt(hairColor.replace('#', '0x')),
@@ -394,6 +397,28 @@ export function ObjectViewerPage() {
               </Card>
             </div>
           </div>
+          
+          {/* ENEMIES Section */}
+          <div className="mb-[15px]">
+            <div className="p-[8px_10px] font-bold text-[#dfe6e9] uppercase text-[13.6px] tracking-[1px] mb-[5px]">
+              ENEMIES
+            </div>
+            <div className="space-y-2">
+              <Card 
+                onClick={() => setCharacterType('zombie')}
+                className={`cursor-pointer border-none ${
+                  characterType === 'zombie' ? 'bg-[#8e44ad]' : 'bg-[#444]'
+                }`}
+              >
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm text-white flex items-center m-0 font-medium">
+                    <span className="mr-2 opacity-70">🧟</span>
+                    Normal Zombie
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
         </div>
 
         <div className="p-4 border-t border-[#444]">
@@ -416,10 +441,13 @@ export function ObjectViewerPage() {
         {/* Object Info */}
         <div className="absolute top-5 right-5 bg-[rgba(0,0,0,0.6)] px-[15px] py-[10px] rounded z-[5] text-right pointer-events-none">
           <h3 className="text-xl font-bold text-[#00cec9] m-0">
-            {characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character
+            {characterType === 'zombie' 
+              ? 'Normal Zombie' 
+              : `${characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character`
+            }
           </h3>
           <p className="text-[14.4px] text-[#aaa] m-0">
-            {characterType}-character
+            {characterType}
           </p>
         </div>
 
