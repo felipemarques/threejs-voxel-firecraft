@@ -99,9 +99,11 @@ export function MainMenu() {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
       {/* Title */}
-      <h1 className="text-6xl font-bold text-white mb-2 tracking-tight">
-        VOXEL FIRECRAFT
-      </h1>
+      <img 
+        src="/logo.png" 
+        alt="Voxel Firecraft" 
+        className="h-32 mb-6 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:scale-105 transition-transform duration-500"
+      />
       <p className="text-slate-400 mb-16 text-sm uppercase tracking-widest">
         Escolha seu modo de jogo
       </p>
