@@ -15,6 +15,7 @@ import { createBus } from '@/game/vehicles/BusObject'
 import { createMotorcycle } from '@/game/vehicles/MotorcycleObject'
 import { createOakTree, createAlpineTree, createBush } from '@/game/nature/TreesObject'
 import { createRock, createRockPillar, createFlatBoulder, createCrystalShard } from '@/game/nature/RocksObject'
+import { createHouse, createSmallBuilding, createTowerBuilding } from '@/game/buildings/BuildingsObject'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -23,7 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 type AnimationType = 'idle' | 'walk' | 'attack' | 'jump'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bus' | 'motorcycle' | 'oak' | 'alpine' | 'bush' | 'rock' | 'pillar' | 'boulder' | 'crystal'
+type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bus' | 'motorcycle' | 'oak' | 'alpine' | 'bush' | 'rock' | 'pillar' | 'boulder' | 'crystal' | 'house' | 'building' | 'tower'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -135,6 +136,17 @@ export function ObjectViewerPage() {
     } else if (characterType === 'crystal') {
       const crystalMesh = createCrystalShard()
       playerData = { mesh: crystalMesh }
+    }
+    // Buildings (return THREE.Group directly)
+    else if (characterType === 'house') {
+      const houseGroup = createHouse()
+      playerData = { mesh: houseGroup }
+    } else if (characterType === 'building') {
+      const buildingGroup = createSmallBuilding()
+      playerData = { mesh: buildingGroup }
+    } else if (characterType === 'tower') {
+      const towerGroup = createTowerBuilding()
+      playerData = { mesh: towerGroup }
     }
     // Enemies
     else if (characterType === 'zombie') {
@@ -267,8 +279,8 @@ export function ObjectViewerPage() {
       
       // V1 exact: wrapper.update(dt * animSpeed, state)
       // which does: this.animTime += dt * 10
-      // Skip animation for static objects (vehicles and nature)
-      const staticObjects = ['car', 'truck', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal']
+      // Skip animation for static objects (vehicles, nature, and buildings)
+      const staticObjects = ['car', 'truck', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal', 'house', 'building', 'tower']
       const isStaticObject = staticObjects.includes(characterTypeRef.current)
       
       if (playerDataRef.current && animSpeedRef.current > 0 && !isStaticObject) {
@@ -706,6 +718,24 @@ export function ObjectViewerPage() {
               </Card>
             </div>
           </div>
+
+          {/* BUILDINGS Section */}
+          <div className="mb-[12px]">
+            <div className="p-[6px_8px] font-bold text-[#dfe6e9] uppercase text-[12px] tracking-[1px] mb-[3px]">
+              BUILDINGS
+            </div>
+            <div className="space-y-1.5">
+              <Card onClick={() => setCharacterType('house')} className={`cursor-pointer border-none ${characterType === 'house' ? 'bg-[#bdc3c7]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🏠</span>House</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('building')} className={`cursor-pointer border-none ${characterType === 'building' ? 'bg-[#7f8c8d]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🏢</span>Small Building</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('tower')} className={`cursor-pointer border-none ${characterType === 'tower' ? 'bg-[#8b7355]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🏰</span>Tower (3 Floors)</CardTitle></CardHeader>
+              </Card>
+            </div>
+          </div>
         </div>
 
         <div className="p-4 border-t border-[#444]">
@@ -753,6 +783,9 @@ export function ObjectViewerPage() {
               : characterType === 'pillar' ? 'Rock Pillar'
               : characterType === 'boulder' ? 'Flat Boulder'
               : characterType === 'crystal' ? 'Crystal Shard'
+              : characterType === 'house' ? 'House'
+              : characterType === 'building' ? 'Small Building'
+              : characterType === 'tower' ? 'Tower (3 Floors)'
               : `${characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character`
             }
           </h3>
@@ -850,8 +883,8 @@ export function ObjectViewerPage() {
               </div>
             )}
 
-            {/* Animation controls - Only for characters and enemies (not vehicles or nature) */}
-            {!['car', 'truck', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal'].includes(characterType) && (
+            {/* Animation controls - Only for characters and enemies (not vehicles, nature, or buildings) */}
+            {!['car', 'truck', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal', 'house', 'building', 'tower'].includes(characterType) && (
               <>
                 {/* Animation */}
                 <div>
