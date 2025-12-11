@@ -4,6 +4,7 @@ import { MainMenu } from './components/menu/MainMenu'
 import { GameCanvas } from './components/GameCanvas'
 import { PauseMenu } from './components/PauseMenu'
 import { ObjectViewerPage } from './pages/ObjectViewerPage'
+import { MapGeneratorPage } from './pages/MapGeneratorPage'
 import { ArcadePage } from './pages/ArcadePage'
 import { LoadingScreen } from './components/ui/LoadingScreen'
 import { useGameSettings } from './stores/gameSettings'
@@ -118,6 +119,7 @@ function App() {
       <Routes>
         <Route path="/" element={<MainMenu />} />
         <Route path="/object-viewer" element={<ObjectViewerPage />} />
+        <Route path="/map-generator" element={<MapGeneratorPage />} />
         
         {/* Direct game routes (backward compatible) */}
         <Route path="/arcade" element={<ArcadePage />} />

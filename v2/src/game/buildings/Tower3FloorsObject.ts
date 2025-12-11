@@ -4,19 +4,25 @@ import * as THREE from 'three'
  * Creates a 3-story tower building with stairs
  * Custom creation for v2
  */
+// Reusable materials
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.8 }) // Brown brick
+const floorMat = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.7 }) // Gray concrete
+const stairMat = new THREE.MeshStandardMaterial({ color: 0x6a5d4f, roughness: 0.9 }) // Dark brown
+const glassMat = new THREE.MeshStandardMaterial({
+  color: 0x87ceeb,
+  transparent: true,
+  opacity: 0.6,
+  metalness: 0.3,
+  roughness: 0.2
+})
+
+/**
+ * Creates a 3-story tower building with stairs
+ * Custom creation for v2
+ */
 export function createTowerBuilding() {
   const g = new THREE.Group()
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.8 }) // Brown brick
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, roughness: 0.7 }) // Gray concrete
-  const stairMat = new THREE.MeshStandardMaterial({ color: 0x6a5d4f, roughness: 0.9 }) // Dark brown
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x87ceeb,
-    transparent: true,
-    opacity: 0.6,
-    metalness: 0.3,
-    roughness: 0.2
-  })
   
   const width = 15.6 // 12 * 1.3 = +30%
   const depth = 7.8 // 6 * 1.3 = +30%

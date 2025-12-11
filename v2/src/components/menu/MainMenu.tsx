@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { SettingsDialog } from './SettingsDialog'
 
 const gameModes: Array<{
-  id: GameMode | 'object-viewer'
+  id: GameMode | 'object-viewer' | 'map-generator'
   title: string
   emoji: string
   description: string
@@ -67,6 +67,13 @@ const gameModes: Array<{
     description: 'Visualizador de objetos e modelos 3D',
     route: '/object-viewer',
   },
+  {
+    id: 'map-generator',
+    title: 'Map Generator',
+    emoji: '🗺️',
+    description: 'Ferramenta de geração de mundo procedural',
+    route: '/map-generator',
+  },
 ]
 
 export function MainMenu() {
@@ -75,10 +82,10 @@ export function MainMenu() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [clickedCard, setClickedCard] = useState<string | null>(null)
 
-  const handleModeClick = (mode: GameMode | 'object-viewer', route: string) => {
+  const handleModeClick = (mode: GameMode | 'object-viewer' | 'map-generator', route: string) => {
     // Visual feedback
     setClickedCard(mode)
-    if (mode !== 'object-viewer') {
+    if (mode !== 'object-viewer' && mode !== 'map-generator') {
       updateSetting('gameMode', mode as GameMode)
     }
     

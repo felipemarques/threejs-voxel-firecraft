@@ -25,6 +25,12 @@ import { createSmallBuilding } from '@/game/buildings/SmallBuildingObject'
 import { createTowerBuilding } from '@/game/buildings/Tower3FloorsObject'
 import { createApartmentBuilding } from '@/game/buildings/ApartmentBuildingObject'
 import { createWarehouse } from '@/game/buildings/WarehouseObject'
+import { createPharmacy } from '@/game/buildings/PharmacyObject'
+import { createMarket } from '@/game/buildings/MarketObject'
+import { createPoliceStation } from '@/game/buildings/PoliceStationObject'
+import { createHospital } from '@/game/buildings/HospitalObject'
+import { createShopping } from '@/game/buildings/ShoppingObject'
+import { createBigGarage } from '@/game/buildings/BigGarageObject'
 import { createJelly } from '@/game/enemies/JellyObject'
 import { loadPistolModel } from '@/game/weapons/PistolObject'
 import { loadPistol2Model } from '@/game/weapons/Pistol2Object'
@@ -39,7 +45,7 @@ import { CharacterAnimator } from '@/game/animations/CharacterAnimator'
 type AnimationType = 'idle' | 'walk' | 'run' | 'attack' | 'jump' | 'dance' | 'die'
 type MouthStyle = 'serious' | 'smile' | 'angry' | 'surprised' | 'none'
 type WeaponType = 'none' | 'pistol' | 'rifle' | 'smg' | 'shotgun' | 'dmr' | 'sniper'
-type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'jelly' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bitrem' | 'bus' | 'motorcycle' | 'oak' | 'alpine' | 'bush' | 'rock' | 'pillar' | 'boulder' | 'crystal' | 'house' | 'building' | 'tower' | 'apartment' | 'warehouse' | 'pistol' | 'pistol2' | 'sniper' | 'shotgun' | 'custom'
+type CharacterType = 'male' | 'female' | 'fatMale' | 'zombie' | 'bigZombie' | 'fatZombie' | 'jelly' | 'slenderman' | 'spider' | 'car' | 'truck' | 'bitrem' | 'bus' | 'motorcycle' | 'oak' | 'alpine' | 'bush' | 'rock' | 'pillar' | 'boulder' | 'crystal' | 'house' | 'building' | 'tower' | 'apartment' | 'warehouse' | 'pharmacy' | 'market' | 'police' | 'hospital' | 'shopping' | 'garage' | 'pistol' | 'pistol2' | 'sniper' | 'shotgun' | 'custom'
 type HairStyle = 'long' | 'ponytail' | 'short' | 'bun'
 
 export function ObjectViewerPage() {
@@ -822,6 +828,24 @@ export function ObjectViewerPage() {
     } else if (characterType === 'warehouse') {
       const warehouseGroup = createWarehouse()
       playerData = { mesh: warehouseGroup }
+    } else if (characterType === 'pharmacy') {
+      const pharmacyGroup = createPharmacy()
+      playerData = { mesh: pharmacyGroup }
+    } else if (characterType === 'market') {
+      const marketGroup = createMarket()
+      playerData = { mesh: marketGroup }
+    } else if (characterType === 'police') {
+      const policeGroup = createPoliceStation()
+      playerData = { mesh: policeGroup }
+    } else if (characterType === 'hospital') {
+      const hospitalGroup = createHospital()
+      playerData = { mesh: hospitalGroup }
+    } else if (characterType === 'shopping') {
+      const shoppingGroup = createShopping()
+      playerData = { mesh: shoppingGroup }
+    } else if (characterType === 'garage') {
+      const garageGroup = createBigGarage()
+      playerData = { mesh: garageGroup }
     }
     // Enemies
     else if (characterType === 'zombie') {
@@ -994,7 +1018,7 @@ export function ObjectViewerPage() {
       // V1 exact: wrapper.update(dt * animSpeed, state)
       // which does: this.animTime += dt * 10
       // Skip animation for static objects (vehicles, nature, and buildings)
-      const staticObjects = ['car', 'truck', 'bitrem', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal', 'house', 'building', 'tower', 'apartment', 'warehouse', 'pistol', 'pistol2', 'sniper', 'shotgun']
+      const staticObjects = ['car', 'truck', 'bitrem', 'bus', 'motorcycle', 'oak', 'alpine', 'bush', 'rock', 'pillar', 'boulder', 'crystal', 'house', 'building', 'tower', 'apartment', 'warehouse', 'pharmacy', 'market', 'police', 'hospital', 'shopping', 'garage', 'pistol', 'pistol2', 'sniper', 'shotgun']
       const isStaticObject = staticObjects.includes(characterTypeRef.current)
       
       // Custom Mixer Update (with speed control)
@@ -2110,6 +2134,24 @@ export function ObjectViewerPage() {
               <Card onClick={() => setCharacterType('warehouse')} className={`cursor-pointer border-none ${characterType === 'warehouse' ? 'bg-[#8b7355]' : 'bg-[#444]'}`}>
                 <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🏭</span>Warehouse</CardTitle></CardHeader>
               </Card>
+              <Card onClick={() => setCharacterType('pharmacy')} className={`cursor-pointer border-none ${characterType === 'pharmacy' ? 'bg-[#4fc3f7]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">💊</span>Pharmacy</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('market')} className={`cursor-pointer border-none ${characterType === 'market' ? 'bg-[#ff9800]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🛒</span>Market</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('police')} className={`cursor-pointer border-none ${characterType === 'police' ? 'bg-[#1565c0]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">👮</span>Police Station</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('hospital')} className={`cursor-pointer border-none ${characterType === 'hospital' ? 'bg-[#d32f2f]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🏥</span>Hospital</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('shopping')} className={`cursor-pointer border-none ${characterType === 'shopping' ? 'bg-[#2196f3]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🛍️</span>Shopping Mall</CardTitle></CardHeader>
+              </Card>
+              <Card onClick={() => setCharacterType('garage')} className={`cursor-pointer border-none ${characterType === 'garage' ? 'bg-[#757575]' : 'bg-[#444]'}`}>
+                <CardHeader className="p-2"><CardTitle className="text-xs text-white flex items-center m-0 font-medium"><span className="mr-1.5 opacity-70 text-sm">🅿️</span>Big Garage</CardTitle></CardHeader>
+              </Card>
             </div>
           </div>
 
@@ -2208,6 +2250,12 @@ export function ObjectViewerPage() {
               : characterType === 'tower' ? 'Tower (3 Floors)'
               : characterType === 'apartment' ? 'Apartment Building'
               : characterType === 'warehouse' ? 'Warehouse'
+              : characterType === 'pharmacy' ? 'Pharmacy'
+              : characterType === 'market' ? 'Market'
+              : characterType === 'police' ? 'Police Station'
+              : characterType === 'hospital' ? 'Hospital'
+              : characterType === 'shopping' ? 'Shopping Mall'
+              : characterType === 'garage' ? 'Big Garage (2 Floors)'
               : characterType === 'custom' ? 'Custom GLB Model'
               : `${characterType === 'female' ? 'Female' : characterType === 'fatMale' ? 'Fat Male' : 'Male'} Character`
             }
@@ -2345,8 +2393,8 @@ export function ObjectViewerPage() {
               </div>
             )}
 
-            {/* Walk Mode (Only for Tower and Warehouse) */}
-            {(characterType === 'tower' || characterType === 'warehouse') && (
+            {/* Walk Mode (All Buildings) */}
+            {(characterType === 'house' || characterType === 'building' || characterType === 'tower' || characterType === 'apartment' || characterType === 'warehouse' || characterType === 'pharmacy' || characterType === 'market' || characterType === 'police' || characterType === 'hospital' || characterType === 'shopping' || characterType === 'garage') && (
               <div>
                 <Button 
                   onClick={toggleWalkMode}

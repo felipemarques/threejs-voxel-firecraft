@@ -7,11 +7,34 @@ import * as THREE from 'three'
  * @param wallColor - Wall color (default 0xbdc3c7 light gray)
  * @param roofColor - Roof color (default 0x7f8c8d dark gray)
  */
+// Material Caches
+const wallCache = new Map<number, THREE.Material>()
+const roofCache = new Map<number, THREE.Material>()
+
+// Static Materials
+const doorMat = new THREE.MeshStandardMaterial({ color: 0x4d2b1b })
+const glassMat = new THREE.MeshStandardMaterial({
+  color: 0x88c0ff,
+  metalness: 0.1,
+  roughness: 0.2,
+  transparent: true,
+  opacity: 0.8
+})
+
 export function createHouse(scale: number = 1, wallColor: number = 0xbdc3c7, roofColor: number = 0x7f8c8d) {
   const houseGroup = new THREE.Group()
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 })
-  const roofMat = new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.7, metalness: 0.1 })
+  let wallMat = wallCache.get(wallColor)
+  if (!wallMat) {
+    wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 })
+    wallCache.set(wallColor, wallMat)
+  }
+
+  let roofMat = roofCache.get(roofColor)
+  if (!roofMat) {
+    roofMat = new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.7, metalness: 0.1 })
+    roofCache.set(roofColor, roofMat)
+  }
 
   // 4 walls
   const walls = [
@@ -37,19 +60,15 @@ export function createHouse(scale: number = 1, wallColor: number = 0xbdc3c7, roo
   houseGroup.add(roof)
 
   // Door
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0x4d2b1b })
+  // Door
+  // doorMat uses global
   const door = new THREE.Mesh(new THREE.BoxGeometry(1, 2.2, 0.1), doorMat)
   door.position.set(0, 1.1, 3.26)
   houseGroup.add(door)
 
   // Windows (2 on back wall)
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0x88c0ff,
-    metalness: 0.1,
-    roughness: 0.2,
-    transparent: true,
-    opacity: 0.8
-  })
+  // Windows (2 on back wall)
+  // glassMat uses global
   const win1 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.05), glassMat)
   win1.position.set(-2, 2.2, -3.26)
   const win2 = win1.clone()
